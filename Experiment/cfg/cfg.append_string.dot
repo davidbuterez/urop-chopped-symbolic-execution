@@ -1,0 +1,5 @@
+digraph "CFG for 'append_string' function" {
+	label="CFG for 'append_string' function";
+
+	Node0x47297d0 [shape=record,label="{entry:\l  %str.addr = alloca i8*, align 8\l  store i8* %str, i8** %str.addr, align 8\l  %0 = load i8** %str.addr, align 8\l  %call = call i8* @strcat(i8* %0, i8* getelementptr inbounds ([14 x i8]*\l... @.str, i32 0, i32 0)) #4\l  ret void\l}"];
+}

@@ -1,0 +1,17 @@
+digraph "CFG for 'main' function" {
+	label="CFG for 'main' function";
+
+	Node0x4737950 [shape=record,label="{entry:\l  %retval = alloca i32, align 4\l  %argc.addr = alloca i32, align 4\l  %argv.addr = alloca i8**, align 8\l  %x = alloca i32, align 4\l  store i32 0, i32* %retval\l  store i32 %argc, i32* %argc.addr, align 4\l  store i8** %argv, i8*** %argv.addr, align 8\l  %0 = load i32* %argc.addr, align 4\l  %cmp = icmp slt i32 %0, 2\l  br i1 %cmp, label %if.then, label %if.end\l|{<s0>T|<s1>F}}"];
+	Node0x4737950:s0 -> Node0x47379b0;
+	Node0x4737950:s1 -> Node0x4737a10;
+	Node0x47379b0 [shape=record,label="{if.then:                                          \l  store i32 1, i32* %retval\l  br label %return\l}"];
+	Node0x47379b0 -> Node0x4737b30;
+	Node0x4737a10 [shape=record,label="{if.end:                                           \l  %1 = load i8*** %argv.addr, align 8\l  %arrayidx = getelementptr inbounds i8** %1, i64 1\l  %2 = load i8** %arrayidx, align 8\l  %call = call i32 @get_length(i8* %2)\l  store i32 %call, i32* %x, align 4\l  %3 = load i8*** %argv.addr, align 8\l  %arrayidx1 = getelementptr inbounds i8** %3, i64 1\l  %4 = load i8** %arrayidx1, align 8\l  %call2 = call i32 @check_password(i8* %4)\l  %tobool = icmp ne i32 %call2, 0\l  br i1 %tobool, label %if.then3, label %if.end5\l|{<s0>T|<s1>F}}"];
+	Node0x4737a10:s0 -> Node0x4737a70;
+	Node0x4737a10:s1 -> Node0x4737ad0;
+	Node0x4737a70 [shape=record,label="{if.then3:                                         \l  %call4 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([17 x i8]*\l... @.str1, i32 0, i32 0))\l  store i32 0, i32* %retval\l  br label %return\l}"];
+	Node0x4737a70 -> Node0x4737b30;
+	Node0x4737ad0 [shape=record,label="{if.end5:                                          \l  store i32 1, i32* %retval\l  br label %return\l}"];
+	Node0x4737ad0 -> Node0x4737b30;
+	Node0x4737b30 [shape=record,label="{return:                                           \l  %5 = load i32* %retval\l  ret i32 %5\l}"];
+}
