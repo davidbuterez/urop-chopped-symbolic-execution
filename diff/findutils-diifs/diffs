@@ -1,0 +1,49 @@
+diff --git a/xargs/xargs.c b/xargs/xargs.c
+index a0be77ea..4585d3c0 100644
+--- a/xargs/xargs.c
++++ b/xargs/xargs.c
+@@ -1134,7 +1134 @@ set_slot_var (unsigned int n)
+-  static const char *fmt = "%u";
+-  int size;
+-  char *buf;
+-
+-
+-  /* Determine the length of the buffer we need.
+-
++  /* Print N into a buffer ... guessing a size which should be safe.
+@@ -1146,3 +1140,2 @@ set_slot_var (unsigned int n)
+-  size = snprintf (NULL, 0u, fmt, n);
+-  assert (size > 0);
+-
++  char buf[20];
++  assert (snprintf (buf, sizeof buf - 1, "%u", n) <= sizeof buf - 1);
+@@ -1153,0 +1147,3 @@ set_slot_var (unsigned int n)
++     If the user doesn't want us to set the variable, there is
++     nothing to do.  However, we defer the bail-out until this
++     point in order to get better test coverage.
+@@ -1155,5 +1151 @@ set_slot_var (unsigned int n)
+-  if (NULL == (buf = malloc (size+1)))
+-    {
+-      error (0, errno, _("unable to allocate memory"));
+-    }
+-  else
++  if (slot_var_name)
+@@ -1161,7 +1153 @@ set_slot_var (unsigned int n)
+-      snprintf (buf, size+1, fmt, n);
+-
+-      /* If the user doesn't want us to set the variable, there is
+-	 nothing to do.  However, we defer the bail-out until this
+-	 point in order to get better test coverage.
+-      */
+-      if (slot_var_name)
++      if (setenv (slot_var_name, buf, 1) < 0)
+@@ -1169,5 +1155,2 @@ set_slot_var (unsigned int n)
+-	  if (setenv (slot_var_name, buf, 1) < 0)
+-	    {
+-	      error (0, errno,
+-		     _("failed to set environment variable %s"), slot_var_name);
+-	    }
++	  error (0, errno,
++	         _("failed to set environment variable %s"), slot_var_name);
+@@ -1175 +1157,0 @@ set_slot_var (unsigned int n)
+-      free (buf);

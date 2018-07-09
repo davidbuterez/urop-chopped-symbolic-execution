@@ -1,0 +1,13 @@
+To generate graphs of a C program (in this example password.bc, assuming pwd is 'Experiment'):
+  
+  1. LLVM bitcode:                                                  clang -emit-llvm src/password.c -c -o out/password.bc
+  2. To see human readable assembly (Optional):                     llvm-dis password.bc -o assembly/password.ll
+
+  3a. To generate CFG graph file (viewable with Graphviz):          cd cfg; opt -dot-cfg ../out/password.bc
+  3b. To generate Call Graph file:                                  cd call-graph; opt -dot-callgraph ../out/password.bc
+
+  4. To generate .ps files for the graphs                           for dotfile in *;do dot -Tps "$dotfile" -o "img/$dotfile.ps";done
+
+Now incorporated in script (printgraphs.sh). Also a clean script is provided (cleangraphs.sh).
+Usage:
+  ./printgraphs.sh password.c
