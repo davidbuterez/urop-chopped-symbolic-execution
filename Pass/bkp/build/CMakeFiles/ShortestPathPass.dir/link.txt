@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC   -shared  -o libShortestPathPass.so CMakeFiles/ShortestPathPass.dir/ShortestPathPass.o 

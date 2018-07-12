@@ -1,0 +1,16 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/davidb/UROP/Pass/ShortestPathPass/ShortestPathPass.cpp
+llvm/Pass.h
+/home/davidb/UROP/Pass/ShortestPathPass/llvm/Pass.h
+llvm/IR/Function.h
+/home/davidb/UROP/Pass/ShortestPathPass/llvm/IR/Function.h
+llvm/Support/raw_ostream.h
+/home/davidb/UROP/Pass/ShortestPathPass/llvm/Support/raw_ostream.h
+

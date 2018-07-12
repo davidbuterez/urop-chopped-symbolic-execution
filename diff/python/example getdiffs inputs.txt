@@ -1,0 +1,3 @@
+./getdiffs.py https://github.com/davidbuterez/password-example 4d7add6
+
+./getdiffs.py https://git.savannah.gnu.org/git/findutils.git c7344d3

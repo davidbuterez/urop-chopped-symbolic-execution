@@ -1,24 +1,7 @@
-diff --git a/password.c b/password.c
-index 248d3f9..e15c500 100644
---- a/password.c
-+++ b/password.c
-@@ -1,0 +2,9 @@
-+#include <string.h>
-+
-+int get_length(const char *str) {
-+  return strlen(str);
-+}
-+
-+void append_string(char *str) {
-+  strcat(str, "newlyappended");
-+}
-@@ -3,0 +13,2 @@ int check_password(char *buf) {
-+  int len = get_length(buf);
-+
-@@ -7,0 +19,3 @@ int check_password(char *buf) {
-+
-+  append_string(buf);
-+
-@@ -13,0 +28,2 @@ int main(int argc, char **argv) {
-+
-+  int x = get_length(argv[1]);
+diff --git a/find/ftsfind.c b/find/ftsfind.c
+index 607ea8d3..57804950 100644
+--- a/find/ftsfind.c
++++ b/find/ftsfind.c
+@@ -146 +146 @@ get_fts_info_name (int info)
+-  static char buf[10];
++  static char buf[14];
