@@ -6,6 +6,7 @@ import getpass
 import pygit2
 
 from os.path import dirname, abspath
+from termcolor import colored
 
 # Handle the cloning of a repo
 def clone_repo(repo_url, repo_path):
@@ -21,6 +22,21 @@ def clone_repo(repo_url, repo_path):
 
   return repo
 
+# Extract function name from header. Might be empty if no function is provided in the source.
+def fn_name_from_header(header):
+  begin_delimitator = '@@'
+  end_delimitator = ')'
+
+  extract = header[header.rfind(begin_delimitator) + len(begin_delimitator) + 1:].rstrip()
+  return extract[:extract.rfind(end_delimitator) + 1].rstrip()
+
+def color_string(str, color_code):
+  return str + color_code
+
+def print_fn_info(filename, fn_name):
+  if fn_name:
+    print(colored(filename, 'blue') + ": " + colored(fn_name, 'green'))
+
 ##### Main program #####
 
 # Initialize argparse
@@ -28,9 +44,13 @@ parser = argparse.ArgumentParser(description='Outputs a list of patched function
 
 parser.add_argument('gitrepo', metavar='repo', help='git repo url')
 parser.add_argument('patchhash', help='patch hash')
+parser.add_argument('--file-extensions', dest="exts", default=['.c', '.h'], metavar='ext', nargs='+', help="data about these file extensions (default .c, .h)" )
 
 # Dictionary of arguments
-args = vars(parser.parse_args())
+args_orig = parser.parse_args()
+args = vars(args_orig)
+
+restrict_extensions = args_orig.exts is not None
 
 # Path where repo is supposed to be
 cwd = os.getcwd()
@@ -63,3 +83,29 @@ else:
     print("Cloned repo.")
   else:
     print('Found required repo.')
+
+# Get diff between patch commit and previous commit
+prev = repo.revparse_single(args['patchhash'] + '~1')
+diff = repo.diff(prev, context_lines=0)
+
+# Write diff file
+diff_file = open('diffs', 'w')
+diff_file.write(diff.patch)
+diff_file.close()
+
+print('Displaying patch information:\n')
+
+patches = list(diff.__iter__())
+for patch in patches:
+  filename = patch.delta.new_file.path
+  extension = filename[filename.rfind('.'):]
+
+  for hunk in patch.hunks:
+    # Print only information regarding provided extensions
+    fn_name = fn_name_from_header(hunk.header)
+    if restrict_extensions:
+      if extension in args_orig.exts:
+        print_fn_info(filename, fn_name)
+    else:
+      print_fn_info(filename, fn_name)
+      
