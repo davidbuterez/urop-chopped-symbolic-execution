@@ -27,16 +27,19 @@ class DiffData:
 
     return second_extract if second_extract else 'Global'
   
+  # Add to dictionary
   def add_fn_lines(self, fn_name, lines):
     if fn_name in self.fn_to_lines:
       self.fn_to_lines[fn_name].extend(lines)
     else:
       self.fn_to_lines[fn_name] = lines
 
+  # Full function information
   def print_fn_pretty(self, fn_name):
     if fn_name:
       print(colored(self.filename, 'blue') + ": " + colored(fn_name, 'green'), end='')
 
+  # Just function name
   def print_fn_simple(self, fn_name):    
     if fn_name and fn_name != 'Global':
       first_extract = fn_name[fn_name.find(' ') + 1:]
@@ -49,6 +52,7 @@ class DiffData:
     print(*lines, end='')
     print(']')
 
+  # Prints all the data that this object has
   def print(self, pretty):
 
     def select_print(pretty, fn_name, lines):
@@ -79,6 +83,7 @@ def clone_repo(repo_url, repo_path):
 
   return repo
 
+# Print collected data
 def print_diff_summary(diff_summary, pretty):
   for diff_data in diff_summary:
     diff_data.print(pretty)
