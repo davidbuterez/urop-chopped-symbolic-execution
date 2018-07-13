@@ -8,6 +8,48 @@ import pygit2
 from os.path import dirname, abspath
 from termcolor import colored
 
+class DiffData:
+  
+  def __init__(self, filename, restrict):
+    self.filename = filename
+    self.fn_to_lines = {}
+    self.restrict_extensions = restrict
+    self.file_extension = filename[filename.rfind('.'):]
+
+  # Extract function name from header. Might be empty if no function is provided in the source.
+  @staticmethod
+  def fn_name_from_header(header):
+    begin_delimitator = '@@'
+    end_delimitator = ')'
+
+    first_extract = header[header.rfind(begin_delimitator) + len(begin_delimitator) + 1:].rstrip()
+    second_extract = first_extract[:first_extract.rfind(end_delimitator) + 1].rstrip()
+
+    return second_extract if second_extract else 'Global'
+  
+  def add_fn_lines(self, fn_name, lines):
+    if fn_name in self.fn_to_lines:
+      self.fn_to_lines[fn_name].extend(lines)
+    else:
+      self.fn_to_lines[fn_name] = lines
+
+  def print_fn_info(self, fn_name):
+    if fn_name:
+      print(colored(self.filename, 'blue') + ": " + colored(fn_name, 'green'), end='')
+  
+  def print(self):
+    for fn_name, lines in self.fn_to_lines.items():
+      if self.restrict_extensions:
+        if self.file_extension in args_orig.exts:
+          self.print_fn_info(fn_name)
+      else:
+        self.print_fn_info(fn_name)
+      
+      print(' changed lines [', end='')
+      print(*lines, end='')
+      print(']')
+
+
 # Handle the cloning of a repo
 def clone_repo(repo_url, repo_path):
   repo = None
@@ -22,20 +64,9 @@ def clone_repo(repo_url, repo_path):
 
   return repo
 
-# Extract function name from header. Might be empty if no function is provided in the source.
-def fn_name_from_header(header):
-  begin_delimitator = '@@'
-  end_delimitator = ')'
-
-  extract = header[header.rfind(begin_delimitator) + len(begin_delimitator) + 1:].rstrip()
-  return extract[:extract.rfind(end_delimitator) + 1].rstrip()
-
-def color_string(str, color_code):
-  return str + color_code
-
-def print_fn_info(filename, fn_name):
-  if fn_name:
-    print(colored(filename, 'blue') + ": " + colored(fn_name, 'green'))
+def print_diff_summary(diff_summary):
+  for diff_data in diff_summary:
+    diff_data.print()
 
 ##### Main program #####
 
@@ -49,8 +80,6 @@ parser.add_argument('--file-extensions', dest="exts", default=['.c', '.h'], meta
 # Dictionary of arguments
 args_orig = parser.parse_args()
 args = vars(args_orig)
-
-restrict_extensions = args_orig.exts is not None
 
 # Path where repo is supposed to be
 cwd = os.getcwd()
@@ -95,17 +124,20 @@ diff_file.close()
 
 print('Displaying patch information:\n')
 
+diff_summary = []
 patches = list(diff.__iter__())
+
 for patch in patches:
   filename = patch.delta.new_file.path
-  extension = filename[filename.rfind('.'):]
+  diff_data = DiffData(filename, args_orig.exts is not None)
 
   for hunk in patch.hunks:
-    # Print only information regarding provided extensions
-    fn_name = fn_name_from_header(hunk.header)
-    if restrict_extensions:
-      if extension in args_orig.exts:
-        print_fn_info(filename, fn_name)
-    else:
-      print_fn_info(filename, fn_name)
-      
+    fn_lines = []
+    for diff_line in hunk.lines:
+      fn_lines.append(diff_line.new_lineno)
+
+    diff_data.add_fn_lines(DiffData.fn_name_from_header(hunk.header), fn_lines)
+  
+  diff_summary.append(diff_data) 
+
+print_diff_summary(diff_summary)  
