@@ -33,22 +33,37 @@ class DiffData:
     else:
       self.fn_to_lines[fn_name] = lines
 
-  def print_fn_info(self, fn_name):
+  def print_fn_pretty(self, fn_name):
     if fn_name:
       print(colored(self.filename, 'blue') + ": " + colored(fn_name, 'green'), end='')
-  
-  def print(self):
+
+  def print_fn_simple(self, fn_name):    
+    if fn_name and fn_name != 'Global':
+      first_extract = fn_name[fn_name.find(' ') + 1:]
+      second_extract = first_extract[:first_extract.rfind('(')]
+      print(colored(second_extract, 'green'))
+
+  @staticmethod
+  def print_lines(lines):
+    print(' changed lines [', end='')
+    print(*lines, end='')
+    print(']')
+
+  def print(self, pretty):
+
+    def select_print(pretty, fn_name, lines):
+      if pretty:
+        self.print_fn_pretty(fn_name)
+        DiffData.print_lines(lines)
+      else:
+        self.print_fn_simple(fn_name)
+
     for fn_name, lines in self.fn_to_lines.items():
       if self.restrict_extensions:
         if self.file_extension in args_orig.exts:
-          self.print_fn_info(fn_name)
+          select_print(pretty, fn_name, lines)   
       else:
-        self.print_fn_info(fn_name)
-      
-      print(' changed lines [', end='')
-      print(*lines, end='')
-      print(']')
-
+        select_print(pretty, fn_name, lines)
 
 # Handle the cloning of a repo
 def clone_repo(repo_url, repo_path):
@@ -64,9 +79,10 @@ def clone_repo(repo_url, repo_path):
 
   return repo
 
-def print_diff_summary(diff_summary):
+def print_diff_summary(diff_summary, pretty):
   for diff_data in diff_summary:
-    diff_data.print()
+    diff_data.print(pretty)
+
 
 ##### Main program #####
 
@@ -75,7 +91,8 @@ parser = argparse.ArgumentParser(description='Outputs a list of patched function
 
 parser.add_argument('gitrepo', metavar='repo', help='git repo url')
 parser.add_argument('patchhash', help='patch hash')
-parser.add_argument('--file-extensions', dest="exts", default=['.c', '.h'], metavar='ext', nargs='+', help="data about these file extensions (default .c, .h)" )
+parser.add_argument('--file-extensions', dest="exts", default=['.c', '.h'], metavar='ext', nargs='+', help='data about these file extensions (default .c, .h)' )
+parser.add_argument('--only-function-names', dest='fn_names', action='store_true', help='display only a list of function names')
 
 # Dictionary of arguments
 args_orig = parser.parse_args()
@@ -134,10 +151,14 @@ for patch in patches:
   for hunk in patch.hunks:
     fn_lines = []
     for diff_line in hunk.lines:
-      fn_lines.append(diff_line.new_lineno)
+      if diff_line.new_lineno > -1:
+        fn_lines.append(diff_line.new_lineno)
 
     diff_data.add_fn_lines(DiffData.fn_name_from_header(hunk.header), fn_lines)
   
   diff_summary.append(diff_data) 
 
-print_diff_summary(diff_summary)  
+if bool(args['fn_names']):
+  print_diff_summary(diff_summary, pretty=False)
+else:
+  print_diff_summary(diff_summary, pretty=True)
