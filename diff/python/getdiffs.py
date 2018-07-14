@@ -81,8 +81,11 @@ class FileDiff:
 
   # Prints all the data that this object has
   def print(self, pretty):
+    fn_list_file = None
+
     if not pretty:
       print('Updated functions:')
+      fn_list_file = open('../updated_functions', 'w')
 
     for fn_name, lines in self.fn_to_lines.items():
       if pretty and lines:
@@ -91,9 +94,10 @@ class FileDiff:
         self.fn_to_lines[fn_name].print_removed_lines()
       elif lines:
         print('  %s' % colored(fn_name, 'green'))
+        fn_list_file.write('%s\n' % fn_name)
 
 # Handle the cloning of a repo
-def clone_repo(repo_url, repo_path):
+def clone_repo(repo_url, repo_path, hash):
   repo = None
 
   try:
@@ -103,7 +107,7 @@ def clone_repo(repo_url, repo_path):
     password = getpass.getpass('Enter git password: ')
     cred = pygit2.UserPass(username, password)
     try:
-      repo = pygit2.clone_repository(args['gitrepo'], repo_path, callbacks=pygit2.RemoteCallbacks(credentials=cred))
+      repo = pygit2.clone_repository(repo_url, repo_path, callbacks=pygit2.RemoteCallbacks(credentials=cred))
     except ValueError:
       print("Invalid URL!")
       sys.exit(1)
@@ -111,7 +115,7 @@ def clone_repo(repo_url, repo_path):
     print("Invalid URL!")
     sys.exit(1)
 
-  hash_oid = pygit2.Oid(hex=args['patchhash'])
+  hash_oid = pygit2.Oid(hex=hash)
   repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
 
   return repo
@@ -122,115 +126,118 @@ def print_diff_summary(diff_summary, pretty):
     diff_data.print(pretty)
 
 
-
 ##### Main program #####
+def main(main_args):
+  # Initialize argparse
+  parser = argparse.ArgumentParser(description='Outputs a list of patched functions and the corresponding source code lines.')
 
-# Initialize argparse
-parser = argparse.ArgumentParser(description='Outputs a list of patched functions and the corresponding source code lines.')
+  parser.add_argument('gitrepo', metavar='repo', help='git repo url')
+  parser.add_argument('patchhash', help='patch hash')
+  parser.add_argument('--only-function-names', dest='fn_names', action='store_true', help='display only a list of function names')
 
-parser.add_argument('gitrepo', metavar='repo', help='git repo url')
-parser.add_argument('patchhash', help='patch hash')
-parser.add_argument('--only-function-names', dest='fn_names', action='store_true', help='display only a list of function names')
+  # Dictionary of arguments
+  args_orig = parser.parse_args(main_args)
+  args = vars(args_orig)
 
-# Dictionary of arguments
-args_orig = parser.parse_args()
-args = vars(args_orig)
+  # Path where repo is supposed to be
+  cwd = os.getcwd()
+  repo_path = cwd + '/repo'
 
-# Path where repo is supposed to be
-cwd = os.getcwd()
-repo_path = cwd + '/repo'
+  # Do not look outside this path
+  ceil_dir = dirname(abspath(repo_path))
 
-# Do not look outside this path
-ceil_dir = dirname(abspath(repo_path))
+  # Check if we have a repo
+  discover_repo_path = pygit2.discover_repository(repo_path, 0, dirname(cwd))
 
-# Check if we have a repo
-discover_repo_path = pygit2.discover_repository(repo_path, 0, dirname(cwd))
+  # Allowed file extensions
+  extensions = ['.c', '.h']
 
-# Allowed file extensions
-extensions = ['.c', '.h']
+  repo = None
 
-repo = None
-
-if discover_repo_path is None:
-  print("No repo found. Cloning...")
-  repo = clone_repo(args['gitrepo'], repo_path)
-  print("Cloned repo.")
-  current_hash = repo.revparse_single('HEAD')
-  print('Current commit (patch): ' + current_hash.hex)
-
-else:
-  repo = pygit2.Repository(discover_repo_path)
-
-  if repo.remotes['origin'].url != args['gitrepo']:
-    print("Found repo is incorrect. Cloning required repo...")
-
-    # Remove existing contents
-    shutil.rmtree(repo_path)
-
-    # Clone
-    repo = clone_repo(args['gitrepo'], repo_path)
-
+  if discover_repo_path is None:
+    print("No repo found. Cloning...")
+    repo = clone_repo(args['gitrepo'], repo_path, args['patchhash'])
     print("Cloned repo.")
     current_hash = repo.revparse_single('HEAD')
     print('Current commit (patch): ' + current_hash.hex)
+
   else:
-    print('Found required repo.')
+    repo = pygit2.Repository(discover_repo_path)
+
+    if repo.remotes['origin'].url != args['gitrepo']:
+      print("Found repo is incorrect. Cloning required repo...")
+
+      # Remove existing contents
+      shutil.rmtree(repo_path)
+
+      # Clone
+      repo = clone_repo(args['gitrepo'], repo_path, args['patchhash'])
+
+      print("Cloned repo.")
+      current_hash = repo.revparse_single('HEAD')
+      print('Current commit (patch): ' + current_hash.hex)
+    else:
+      print('Found required repo.')
+      
+      # Check that commits match
+      current_hash = repo.revparse_single('HEAD')
+      print('Current commit (patch): ' + current_hash.hex)
+      if current_hash.hex != args['patchhash']:
+        print('Changing to desired commit...')
+        hash_oid = pygit2.Oid(hex=args['patchhash'])
+        repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
+        print('Changed to %s.' % (args['patchhash'],))
+
+
+  os.chdir(repo_path)
+
+  # Get diff between patch commit and previous commit
+  prev = repo.revparse_single('HEAD~')
+  curr = repo.revparse_single('HEAD')
+  print("Comparing with previous commit: " + prev.hex)
+  diff = repo.diff(prev, curr, context_lines=0)
+
+  # Write diff file
+  diff_file = open('diffs', 'w')
+  diff_file.write(diff.patch)
+  diff_file.close()
+
+  diff_summary = []
+  patches = list(diff.__iter__())
+
+  for patch in patches:
+    filename = patch.delta.new_file.path
+
+    extension = filename[filename.rfind('.'):]
+    if extension not in extensions:
+      continue
+
+    diff_data = FileDiff(filename)
+
+    for hunk in patch.hunks:
+      fn_lines = []
+      for diff_line in hunk.lines:
+        if diff_line.content.strip():
+          if diff_line.new_lineno > -1:
+            fn_lines.append(diff_line.new_lineno)
+          else:
+            fn_lines.append(-diff_line.old_lineno)
+
+      diff_data.match_lines_to_fn(fn_lines)
     
-    # Check that commits match
-    current_hash = repo.revparse_single('HEAD')
-    print('Current commit (patch): ' + current_hash.hex)
-    if current_hash.hex != args['patchhash']:
-      print('Changing to desired commit...')
-      hash_oid = pygit2.Oid(hex=args['patchhash'])
-      repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
-      print('Changed to %s.' % (args['patchhash'],))
+    diff_summary.append(diff_data) 
 
+  if diff_summary:
+    print('Displaying patch information:\n')
 
-os.chdir(repo_path)
-
-# Get diff between patch commit and previous commit
-prev = repo.revparse_single('HEAD~')
-curr = repo.revparse_single('HEAD')
-print("Comparing with previous commit: " + prev.hex)
-diff = repo.diff(prev, curr, context_lines=0)
-
-# Write diff file
-diff_file = open('diffs', 'w')
-diff_file.write(diff.patch)
-diff_file.close()
-
-diff_summary = []
-patches = list(diff.__iter__())
-
-for patch in patches:
-  filename = patch.delta.new_file.path
-
-  extension = filename[filename.rfind('.'):]
-  if extension not in extensions:
-    continue
-
-  diff_data = FileDiff(filename)
-
-  for hunk in patch.hunks:
-    fn_lines = []
-    for diff_line in hunk.lines:
-      if diff_line.content.strip():
-        if diff_line.new_lineno > -1:
-          fn_lines.append(diff_line.new_lineno)
-        else:
-          fn_lines.append(-diff_line.old_lineno)
-
-    diff_data.match_lines_to_fn(fn_lines)
-  
-  diff_summary.append(diff_data) 
-
-if diff_summary:
-  print('Displaying patch information:\n')
-
-  if bool(args['fn_names']):
-    print_diff_summary(diff_summary, pretty=False)
+    if bool(args['fn_names']):
+      print_diff_summary(diff_summary, pretty=False)
+    else:
+      print_diff_summary(diff_summary, pretty=True)
+    print()
   else:
-    print_diff_summary(diff_summary, pretty=True)
-  print()
-else:
-  print('No relevant changes detected.')
+    print('No relevant changes detected.')
+
+
+if __name__ == '__main__':
+  main(sys.argv[1:])
