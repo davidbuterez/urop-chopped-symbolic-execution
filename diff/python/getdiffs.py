@@ -1,38 +1,58 @@
 #!/usr/bin/env python
+import sys
 import argparse
 import os
+import subprocess
+import shlex
 import shutil
 import getpass
 import pygit2
+import json
 
 from os.path import dirname, abspath
 from termcolor import colored
 
-class DiffData:
+class FnData:
+
+  def __init__(self, fn_name, start, end, prototype):
+    
+    def trim_prototype(prototype):
+      proto = prototype[:prototype.rfind('{') - 1]
+      return proto[proto.find('^') + 1:]
+
+    self.fn_name = fn_name
+    self.start_line = start
+    self.end_line = end
+    self.prototype = trim_prototype(prototype)
+
+class FileDiff:
   
   def __init__(self, filename, restrict):
     self.filename = filename
-    self.fn_to_lines = {}
     self.restrict_extensions = restrict
     self.file_extension = filename[filename.rfind('.'):]
+    self.fn_map = self.get_fn_names()
+    self.fn_to_lines = {key: [] for key in self.fn_map.keys()}
 
-  # Extract function name from header. Might be empty if no function is provided in the source.
-  @staticmethod
-  def fn_name_from_header(header):
-    begin_delimitator = '@@'
-    end_delimitator = ')'
+  def get_fn_names(self):
+    fn_table = subprocess.check_output(['ctags', '-x', '--c-kinds=fp', '--fields=+ne', '--output-format=json', self.filename]).decode('utf-8').strip().split('\n')
+    fn_map = {}
 
-    first_extract = header[header.rfind(begin_delimitator) + len(begin_delimitator) + 1:].rstrip()
-    second_extract = first_extract[:first_extract.rfind(end_delimitator) + 1].rstrip()
+    for obj in fn_table:
+      fn_data = json.loads(obj)
+      fn_map[fn_data['name']] = FnData(fn_data['name'], fn_data['line'], fn_data['end'], fn_data['pattern'])
 
-    return second_extract if second_extract else 'Global'
-  
-  # Add to dictionary
-  def add_fn_lines(self, fn_name, lines):
-    if fn_name in self.fn_to_lines:
-      self.fn_to_lines[fn_name].extend(lines)
-    else:
-      self.fn_to_lines[fn_name] = lines
+    return fn_map
+
+  def match_lines_to_fn(self, lines):
+    # matched_fn_name = None
+
+    start, end = 0, 0
+
+    for fn_name, fn_data in self.fn_map.items():
+      for line_no in lines:
+        if line_no >= fn_data.start_line and line_no <= fn_data.end_line:
+          self.fn_to_lines[fn_name].append(line_no)
 
   # Full function information
   def print_fn_pretty(self, fn_name):
@@ -56,10 +76,10 @@ class DiffData:
   def print(self, pretty):
 
     def select_print(pretty, fn_name, lines):
-      if pretty:
+      if pretty and lines:
         self.print_fn_pretty(fn_name)
-        DiffData.print_lines(lines)
-      else:
+        FileDiff.print_lines(lines)
+      elif lines:
         self.print_fn_simple(fn_name)
 
     for fn_name, lines in self.fn_to_lines.items():
@@ -79,7 +99,17 @@ def clone_repo(repo_url, repo_path):
     username = input('Enter git username: ')
     password = getpass.getpass('Enter git password: ')
     cred = pygit2.UserPass(username, password)
-    repo = pygit2.clone_repository(args['gitrepo'], repo_path, callbacks=pygit2.RemoteCallbacks(credentials=cred))
+    try:
+      repo = pygit2.clone_repository(args['gitrepo'], repo_path, callbacks=pygit2.RemoteCallbacks(credentials=cred))
+    except ValueError:
+      print("Invalid URL!")
+      sys.exit(1)
+  except ValueError:
+    print("Invalid URL!")
+    sys.exit(1)
+
+  hash_oid = pygit2.Oid(hex=args['patchhash'])
+  repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
 
   return repo
 
@@ -87,7 +117,6 @@ def clone_repo(repo_url, repo_path):
 def print_diff_summary(diff_summary, pretty):
   for diff_data in diff_summary:
     diff_data.print(pretty)
-
 
 ##### Main program #####
 
@@ -119,6 +148,7 @@ if discover_repo_path is None:
   print("No repo found. Cloning...")
   repo = clone_repo(args['gitrepo'], repo_path)
   print("Cloned repo.")
+
 else:
   repo = pygit2.Repository(discover_repo_path)
 
@@ -134,9 +164,21 @@ else:
     print("Cloned repo.")
   else:
     print('Found required repo.')
+    
+    # Check that commits match
+    current_hash = repo.revparse_single('HEAD')
+    print('Current commit: ' + current_hash.hex)
+    if current_hash.hex != args['patchhash']:
+      print('Changing to desired commit...')
+      hash_oid = pygit2.Oid(hex=args['patchhash'])
+      repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
+      print('Changed to %s.' % (args['patchhash'],))
+
+
+os.chdir(repo_path)
 
 # Get diff between patch commit and previous commit
-prev = repo.revparse_single(args['patchhash'] + '~1')
+prev = repo.revparse_single('HEAD~')
 diff = repo.diff(prev, context_lines=0)
 
 # Write diff file
@@ -151,15 +193,15 @@ patches = list(diff.__iter__())
 
 for patch in patches:
   filename = patch.delta.new_file.path
-  diff_data = DiffData(filename, args_orig.exts is not None)
+  diff_data = FileDiff(filename, args_orig.exts is not None)
 
   for hunk in patch.hunks:
     fn_lines = []
     for diff_line in hunk.lines:
-      if diff_line.new_lineno > -1:
+      if diff_line.new_lineno > -1 and diff_line.content.strip():
         fn_lines.append(diff_line.new_lineno)
 
-    diff_data.add_fn_lines(DiffData.fn_name_from_header(hunk.header), fn_lines)
+    diff_data.match_lines_to_fn(fn_lines)
   
   diff_summary.append(diff_data) 
 
