@@ -40,7 +40,7 @@ class FileDiff:
 
     for obj in fn_table:
       fn_data = json.loads(obj)
-      fn_map[fn_data['name']] = FnData(fn_data['name'], fn_data['line'], fn_data['end'], fn_data['pattern'])
+      fn_map[fn_data['name']] = FnData(fn_data['name'], fn_data['line'], fn_data['end'] if 'end' in fn_data else fn_data['line'], fn_data['pattern'])
 
     return fn_map
 
