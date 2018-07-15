@@ -21,6 +21,24 @@ class PrintManager:
     if PrintManager.should_print:
       print(' '.join(map(str,args)), **kwargs)
 
+  @staticmethod
+  def print_diff_summary(diff_summary, pretty):
+    for diff_data in diff_summary:
+      diff_data.print(pretty)
+  
+  @staticmethod
+  def print_relevant_diff(diff_summary, only_fn):
+    if diff_summary:
+      PrintManager.print('Displaying patch information:\n')
+
+      if bool(only_fn):
+        PrintManager.print_diff_summary(diff_summary, pretty=False)
+      else:
+        PrintManager.print_diff_summary(diff_summary, pretty=True)
+      PrintManager.print()
+    else:
+      PrintManager.print('No relevant changes detected.')
+
 class ChangedLinesManager:
 
   def __init__(self, added_lines, removed_lines):
@@ -76,19 +94,23 @@ class FileDifferences:
 
   def match_lines_to_fn(self, new_lines, old_lines):
     for fn_name in self.current_fn_map.keys():
-      new_fn_attr = self.current_fn_map[fn_name]
-      old_fn_attr = self.prev_fn_map[fn_name]
 
       added, removed = [], []
 
-      for new_line_no in new_lines:
-        if new_line_no >= new_fn_attr.start_line and new_line_no <= new_fn_attr.end_line:
-          added.append(new_line_no)
-      
-      for old_line_no in old_lines:
-        if old_line_no >= old_fn_attr.start_line and old_line_no <= old_fn_attr.end_line:
-          removed.append(old_line_no)
+      if fn_name in self.current_fn_map:
+        new_fn_attr = self.current_fn_map[fn_name]
 
+        for new_line_no in new_lines:
+          if new_line_no >= new_fn_attr.start_line and new_line_no <= new_fn_attr.end_line:
+            added.append(new_line_no)
+
+      if fn_name in self.prev_fn_map:
+        old_fn_attr = self.prev_fn_map[fn_name]
+
+        for old_line_no in old_lines:
+          if old_line_no >= old_fn_attr.start_line and old_line_no <= old_fn_attr.end_line:
+            removed.append(old_line_no)
+      
       if fn_name in self.fn_to_changed_lines:
         self.fn_to_changed_lines[fn_name].added_lines.extend(added)
         self.fn_to_changed_lines[fn_name].removed_lines.extend(removed)
@@ -117,10 +139,11 @@ class RepoManager:
 
   cloned_repos_paths = []
 
-  def __init__(self, repo_url, cwd, cache):
+  def __init__(self, repo_url, cwd, cache, extensions):
     self.repo_url = repo_url
     self.cwd = cwd
     self.cache = cache
+    self.allowed_extensions = extensions
 
   # Handles the cloning of a repo
   def clone_repo(self, repo_path, hash):
@@ -194,17 +217,41 @@ class RepoManager:
     
     PrintManager.print()
     return repo
+
+  def compute_diffs(self, diff):
+    diff_summary = []
+    patches = list(diff.__iter__())
+
+    for patch in patches:
+      filename = patch.delta.new_file.path
+
+      extension = filename[filename.rfind('.'):]
+      if extension not in self.allowed_extensions:
+        continue
+
+      diff_data = FileDifferences(filename)
+
+      for hunk in patch.hunks:
+        new_fn_lines = []
+        old_fn_lines = []
+
+        for diff_line in hunk.lines:
+          if diff_line.content.strip():
+            if diff_line.new_lineno > -1:
+              new_fn_lines.append(diff_line.new_lineno)
+            else:
+              old_fn_lines.append(diff_line.old_lineno)
+
+        diff_data.match_lines_to_fn(new_fn_lines, old_fn_lines)
+      
+      diff_summary.append(diff_data)
+    
+    return diff_summary
   
   def cleanup(self):
     if not self.cache:
       for path in RepoManager.cloned_repos_paths:
         shutil.rmtree(path)
-
-# Print collected data
-def print_diff_summary(diff_summary, pretty):
-  for diff_data in diff_summary:
-    diff_data.print(pretty)
-
 
 ##### Main program #####
 def main(main_args):
@@ -232,15 +279,15 @@ def main(main_args):
   # Allowed file extensions
   extensions = ['.c', '.h']
 
-  repo_manager = RepoManager(args['gitrepo'], cwd, args['cache'])
-  repo = repo_manager.get_repo(curr_repo_path, args['patchhash'])
+  repo_manager = RepoManager(args['gitrepo'], cwd, args['cache'], extensions)
+  curr_repo = repo_manager.get_repo(curr_repo_path, args['patchhash'])
 
   # Get diff between patch commit and previous commit
-  prev = repo.revparse_single('HEAD~')
-  curr = repo.revparse_single('HEAD')
+  prev = curr_repo.revparse_single('HEAD~')
+  curr = curr_repo.revparse_single('HEAD')
   PrintManager.print("Comparing with previous commit: " + prev.hex)
   PrintManager.print()
-  diff = repo.diff(prev, curr, context_lines=0)
+  diff = curr_repo.diff(prev, curr, context_lines=0)
 
   # Also get previous version of repo
   prev_repo = repo_manager.get_repo(prev_repo_path, prev.hex)
@@ -248,45 +295,10 @@ def main(main_args):
   # Write diff file
   diff_file = open('diffs', 'w')
   diff_file.write(diff.patch)
-  diff_file.close()
+  diff_file.close() 
 
-  diff_summary = []
-  patches = list(diff.__iter__())
-
-  for patch in patches:
-    filename = patch.delta.new_file.path
-
-    extension = filename[filename.rfind('.'):]
-    if extension not in extensions:
-      continue
-
-    diff_data = FileDifferences(filename)
-
-    for hunk in patch.hunks:
-      new_fn_lines = []
-      old_fn_lines = []
-
-      for diff_line in hunk.lines:
-        if diff_line.content.strip():
-          if diff_line.new_lineno > -1:
-            new_fn_lines.append(diff_line.new_lineno)
-          else:
-            old_fn_lines.append(diff_line.old_lineno)
-
-      diff_data.match_lines_to_fn(new_fn_lines, old_fn_lines)
-    
-    diff_summary.append(diff_data) 
-
-  if diff_summary:
-    PrintManager.print('Displaying patch information:\n')
-
-    if bool(args['fn_names']):
-      print_diff_summary(diff_summary, pretty=False)
-    else:
-      print_diff_summary(diff_summary, pretty=True)
-    PrintManager.print()
-  else:
-    PrintManager.print('No relevant changes detected.')
+  diff_summary = repo_manager.compute_diffs(diff)
+  PrintManager.print_relevant_diff(diff_summary, args['fn_names'])  
 
   repo_manager.cleanup()
 
