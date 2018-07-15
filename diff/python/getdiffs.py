@@ -12,11 +12,11 @@ import json
 from os.path import dirname, abspath
 from termcolor import colored
 
-class DiffLines:
+class ChangedLinesManager:
 
   def __init__(self, added_lines, removed_lines):
     self.added_lines = added_lines
-    self.removed_lines = [-ln for ln in removed_lines]
+    self.removed_lines = removed_lines
 
   def print_added_lines(self):
     print()
@@ -30,9 +30,9 @@ class DiffLines:
     if self.removed_lines:
       print('Patch has removed lines (old file indices): [', end='')
       print(*self.removed_lines, end='')
-      print(']', end='')
+      print(']')
 
-class FnData:
+class FnAttributes:
 
   def __init__(self, fn_name, start, end, prototype):
     
@@ -45,39 +45,47 @@ class FnData:
     self.end_line = end
     self.prototype = trim_prototype(prototype)
 
-class FileDiff:
+class FileDifferences:
   
   def __init__(self, filename):
     self.filename = filename
     self.file_extension = filename[filename.rfind('.'):]
-    self.fn_map = self.get_fn_names()
-    self.fn_to_lines = {}
+    self.current_fn_map = self.get_fn_names(prev=False)
+    self.prev_fn_map = self.get_fn_names(prev=True)
+    self.fn_to_changed_lines = {}
 
-  def get_fn_names(self):
-    fn_table = subprocess.check_output(['ctags', '-x', '--c-kinds=fp', '--fields=+ne', '--output-format=json', self.filename]).decode('utf-8').strip().split('\n')
+  def get_fn_names(self, prev):
+    target = os.getcwd() + '/repo/' + self.filename if not prev else os.getcwd() + '/repo_prev/' + self.filename
+    fn_table = subprocess.check_output(['ctags', '-x', '--c-kinds=fp', '--fields=+ne', '--output-format=json', target]).decode('utf-8').strip().split('\n')
     fn_map = {}
 
     for obj in fn_table:
       fn_data = json.loads(obj)
-      fn_map[fn_data['name']] = FnData(fn_data['name'], fn_data['line'], fn_data['end'] if 'end' in fn_data else fn_data['line'], fn_data['pattern'])
+      fn_map[fn_data['name']] = FnAttributes(fn_data['name'], fn_data['line'], fn_data['end'] if 'end' in fn_data else fn_data['line'], fn_data['pattern'])
 
     return fn_map
 
-  def match_lines_to_fn(self, lines):
-    for fn_name, fn_data in self.fn_map.items():
-      added, removed = [], []
-      for line_no in lines:
-        if abs(line_no) >= fn_data.start_line and abs(line_no) <= fn_data.end_line:
-          if line_no > 0:
-            added.append(line_no)
-          else:
-            removed.append(line_no)
+  def match_lines_to_fn(self, new_lines, old_lines):
+    for fn_name in self.current_fn_map.keys():
+        new_fn_attr = self.current_fn_map[fn_name]
+        old_fn_attr = self.prev_fn_map[fn_name]
 
-      if fn_name in self.fn_to_lines:
-        self.fn_to_lines[fn_name].added_lines.extend(added)
-        self.fn_to_lines[fn_name].removed_lines.extend(removed)
-      elif added or removed:
-        self.fn_to_lines[fn_name] = DiffLines(added, removed)
+        added, removed = [], []
+
+        for new_line_no in new_lines:
+          if new_line_no >= new_fn_attr.start_line and new_line_no <= new_fn_attr.end_line:
+            added.append(new_line_no)
+        
+        for old_line_no in old_lines:
+          if old_line_no >= old_fn_attr.start_line and old_line_no <= old_fn_attr.end_line:
+            removed.append(old_line_no)
+
+        if fn_name in self.fn_to_changed_lines:
+          self.fn_to_changed_lines[fn_name].added_lines.extend(added)
+          self.fn_to_changed_lines[fn_name].removed_lines.extend(removed)
+        elif added or removed:
+          self.fn_to_changed_lines[fn_name] = ChangedLinesManager(added, removed)
+        
 
   # Prints all the data that this object has
   def print(self, pretty):
@@ -87,11 +95,11 @@ class FileDiff:
       print('Updated functions:')
       fn_list_file = open('../updated_functions', 'w')
 
-    for fn_name, lines in self.fn_to_lines.items():
+    for fn_name, lines in self.fn_to_changed_lines.items():
       if pretty and lines:
         print('%s: In function %s' % (colored(self.filename, 'blue'), colored(fn_name, 'green')), end='')
-        self.fn_to_lines[fn_name].print_added_lines()
-        self.fn_to_lines[fn_name].print_removed_lines()
+        self.fn_to_changed_lines[fn_name].print_added_lines()
+        self.fn_to_changed_lines[fn_name].print_removed_lines()
       elif lines:
         print('  %s' % colored(fn_name, 'green'))
         fn_list_file.write('%s\n' % fn_name)
@@ -142,6 +150,7 @@ def main(main_args):
   # Path where repo is supposed to be
   cwd = os.getcwd()
   repo_path = cwd + '/repo'
+  prev_repo_path = cwd + '/repo_prev'
 
   # Do not look outside this path
   ceil_dir = dirname(abspath(repo_path))
@@ -189,13 +198,14 @@ def main(main_args):
         print('Changed to %s.' % (args['patchhash'],))
 
 
-  os.chdir(repo_path)
-
   # Get diff between patch commit and previous commit
   prev = repo.revparse_single('HEAD~')
   curr = repo.revparse_single('HEAD')
   print("Comparing with previous commit: " + prev.hex)
   diff = repo.diff(prev, curr, context_lines=0)
+
+  # Also get previous version of repo
+  prev_repo = clone_repo(args['gitrepo'], prev_repo_path, prev.hex)
 
   # Write diff file
   diff_file = open('diffs', 'w')
@@ -212,18 +222,20 @@ def main(main_args):
     if extension not in extensions:
       continue
 
-    diff_data = FileDiff(filename)
+    diff_data = FileDifferences(filename)
 
     for hunk in patch.hunks:
-      fn_lines = []
+      new_fn_lines = []
+      old_fn_lines = []
+
       for diff_line in hunk.lines:
         if diff_line.content.strip():
           if diff_line.new_lineno > -1:
-            fn_lines.append(diff_line.new_lineno)
+            new_fn_lines.append(diff_line.new_lineno)
           else:
-            fn_lines.append(-diff_line.old_lineno)
+            old_fn_lines.append(diff_line.old_lineno)
 
-      diff_data.match_lines_to_fn(fn_lines)
+      diff_data.match_lines_to_fn(new_fn_lines, old_fn_lines)
     
     diff_summary.append(diff_data) 
 
@@ -237,6 +249,8 @@ def main(main_args):
     print()
   else:
     print('No relevant changes detected.')
+
+  shutil.rmtree(prev_repo_path)
 
 
 if __name__ == '__main__':
