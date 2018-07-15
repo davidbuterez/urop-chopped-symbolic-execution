@@ -139,11 +139,9 @@ class RepoManager:
 
   cloned_repos_paths = []
 
-  def __init__(self, repo_url, cwd, cache, extensions):
+  def __init__(self, repo_url, cache):
     self.repo_url = repo_url
-    self.cwd = cwd
     self.cache = cache
-    self.allowed_extensions = extensions
 
   # Handles the cloning of a repo
   def clone_repo(self, repo_path, hash):
@@ -169,7 +167,7 @@ class RepoManager:
 
     return repo
 
-  def get_repo(self, repo_path, repo_hash):
+  def get_repo(self, repo_path, repo_hash, cwd):
     # Keep track of paths of cloned repos
     RepoManager.cloned_repos_paths.append(repo_path)
 
@@ -177,7 +175,7 @@ class RepoManager:
     ceil_dir = dirname(abspath(repo_path))
 
     # Check if we have a repo
-    discover_repo_path = pygit2.discover_repository(repo_path, 0, dirname(self.cwd))
+    discover_repo_path = pygit2.discover_repository(repo_path, 0, dirname(cwd))
 
     repo = None
 
@@ -218,7 +216,7 @@ class RepoManager:
     PrintManager.print()
     return repo
 
-  def compute_diffs(self, diff):
+  def compute_diffs(self, diff, allowed_extensions):
     diff_summary = []
     patches = list(diff.__iter__())
 
@@ -226,7 +224,7 @@ class RepoManager:
       filename = patch.delta.new_file.path
 
       extension = filename[filename.rfind('.'):]
-      if extension not in self.allowed_extensions:
+      if extension not in allowed_extensions:
         continue
 
       diff_data = FileDifferences(filename)
@@ -279,8 +277,8 @@ def main(main_args):
   # Allowed file extensions
   extensions = ['.c', '.h']
 
-  repo_manager = RepoManager(args['gitrepo'], cwd, args['cache'], extensions)
-  curr_repo = repo_manager.get_repo(curr_repo_path, args['patchhash'])
+  repo_manager = RepoManager(args['gitrepo'], args['cache'])
+  curr_repo = repo_manager.get_repo(curr_repo_path, args['patchhash'], cwd)
 
   # Get diff between patch commit and previous commit
   prev = curr_repo.revparse_single('HEAD~')
@@ -290,14 +288,14 @@ def main(main_args):
   diff = curr_repo.diff(prev, curr, context_lines=0)
 
   # Also get previous version of repo
-  prev_repo = repo_manager.get_repo(prev_repo_path, prev.hex)
+  prev_repo = repo_manager.get_repo(prev_repo_path, prev.hex, cwd)
 
   # Write diff file
   diff_file = open('diffs', 'w')
   diff_file.write(diff.patch)
   diff_file.close() 
 
-  diff_summary = repo_manager.compute_diffs(diff)
+  diff_summary = repo_manager.compute_diffs(diff, extensions)
   PrintManager.print_relevant_diff(diff_summary, args['fn_names'])  
 
   repo_manager.cleanup()
