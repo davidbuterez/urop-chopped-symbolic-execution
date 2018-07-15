@@ -12,6 +12,15 @@ import json
 from os.path import dirname, abspath
 from termcolor import colored
 
+class PrintManager:
+
+  should_print = True
+  
+  @staticmethod
+  def print(*args, **kwargs):
+    if PrintManager.should_print:
+      print(' '.join(map(str,args)), **kwargs)
+
 class ChangedLinesManager:
 
   def __init__(self, added_lines, removed_lines):
@@ -92,7 +101,7 @@ class FileDifferences:
     fn_list_file = None
 
     if not pretty:
-      print('Updated functions:')
+      PrintManager.print('Updated functions:')
       fn_list_file = open('../updated_functions', 'w')
 
     for fn_name, lines in self.fn_to_changed_lines.items():
@@ -126,10 +135,10 @@ class RepoManager:
       try:
         repo = pygit2.clone_repository(self.repo_url, repo_path, callbacks=pygit2.RemoteCallbacks(credentials=cred))
       except ValueError:
-        print("Invalid URL!")
+        PrintManager.print("Invalid URL!")
         sys.exit(1)
     except ValueError:
-      print("Invalid URL!")
+      PrintManager.print("Invalid URL!")
       sys.exit(1)
 
     hash_oid = pygit2.Oid(hex=hash)
@@ -150,17 +159,17 @@ class RepoManager:
     repo = None
 
     if discover_repo_path is None:
-      print("No repo found. Cloning...")
+      PrintManager.print("No repo found. Cloning...")
       repo = self.clone_repo(repo_path, repo_hash)
-      print("Cloned repo.")
+      PrintManager.print("Cloned repo.")
       current_hash = repo.revparse_single('HEAD')
-      print('Current commit (patch): ' + current_hash.hex)
+      PrintManager.print('Current commit (patch): ' + current_hash.hex)
 
     else:
       repo = pygit2.Repository(discover_repo_path)
 
       if repo.remotes['origin'].url != self.repo_url:
-        print("Found repo is incorrect. Cloning required repo...")
+        PrintManager.print("Found repo is incorrect. Cloning required repo...")
 
         # Remove existing contents
         shutil.rmtree(repo_path)
@@ -168,21 +177,22 @@ class RepoManager:
         # Clone
         repo = self.clone_repo(repo_path, repo_hash)
 
-        print("Cloned repo.")
+        PrintManager.print("Cloned repo.")
         current_hash = repo.revparse_single('HEAD')
-        print('Current commit (patch): ' + current_hash.hex)
+        PrintManager.print('Current commit (patch): ' + current_hash.hex)
       else:
-        print('Found required repo.')
+        PrintManager.print('Found required repo.')
         
         # Check that commits match
         current_hash = repo.revparse_single('HEAD')
-        print('Current commit (patch): ' + current_hash.hex)
+        PrintManager.print('Current commit (patch): ' + current_hash.hex)
         if current_hash.hex != repo_hash:
-          print('Changing to desired commit...')
+          PrintManager.print('Changing to desired commit...')
           hash_oid = pygit2.Oid(hex=repo_hash)
           repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
-          print('Changed to %s.' % (repo_hash,))
+          PrintManager.print('Changed to %s.' % (repo_hash,))
     
+    PrintManager.print()
     return repo
   
   def cleanup(self):
@@ -205,10 +215,14 @@ def main(main_args):
   parser.add_argument('patchhash', help='patch hash')
   parser.add_argument('--only-function-names', dest='fn_names', action='store_true', help='display only a list of function names')
   parser.add_argument('--cache', action='store_true', help='do not delete cloned repos after finishing')
+  parser.add_argument('--verbose', action='store_true', help='display helpful progress messages')
 
   # Dictionary of arguments
   args_orig = parser.parse_args(main_args)
   args = vars(args_orig)
+
+  # Handle printing
+  PrintManager.should_print = bool(args['verbose'])
 
   # Path where repo is supposed to be
   cwd = os.getcwd()
@@ -224,7 +238,8 @@ def main(main_args):
   # Get diff between patch commit and previous commit
   prev = repo.revparse_single('HEAD~')
   curr = repo.revparse_single('HEAD')
-  print("Comparing with previous commit: " + prev.hex)
+  PrintManager.print("Comparing with previous commit: " + prev.hex)
+  PrintManager.print()
   diff = repo.diff(prev, curr, context_lines=0)
 
   # Also get previous version of repo
@@ -263,15 +278,15 @@ def main(main_args):
     diff_summary.append(diff_data) 
 
   if diff_summary:
-    print('Displaying patch information:\n')
+    PrintManager.print('Displaying patch information:\n')
 
     if bool(args['fn_names']):
       print_diff_summary(diff_summary, pretty=False)
     else:
       print_diff_summary(diff_summary, pretty=True)
-    print()
+    PrintManager.print()
   else:
-    print('No relevant changes detected.')
+    PrintManager.print('No relevant changes detected.')
 
   repo_manager.cleanup()
 
