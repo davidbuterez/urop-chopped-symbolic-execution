@@ -85,11 +85,17 @@ class FileDifferences:
     self.fn_to_changed_lines = {}
 
   def get_fn_names(self, prev):
-    target = os.getcwd() + '/repo/' + self.filename if not prev else os.getcwd() + '/repo_prev/' + self.filename
-    fn_table = subprocess.check_output(['ctags', '-x', '--c-kinds=fp', '--fields=+ne', '--output-format=json', target]).decode('utf-8').strip().split('\n')
-    
     fn_map = {}
-    
+    target = os.getcwd() + '/repo/' + self.filename if not prev else os.getcwd() + '/repo_prev/' + self.filename
+    # fn_table = subprocess.check_output(['ctags', '-x', '--c-kinds=fp', '--fields=+ne', '--output-format=json', target]).decode('utf-8').strip().split('\n')
+    proc = subprocess.Popen(['ctags', '-x', '--c-kinds=fp', '--fields=+ne', '--output-format=json', target], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    out, err = proc.communicate()
+    fn_table = out.decode('utf-8').strip().split('\n')
+
+    if err:
+      return fn_map
+
     for obj in fn_table:
       if not obj:
         continue
