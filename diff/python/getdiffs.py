@@ -8,9 +8,12 @@ import shutil
 import getpass
 import pygit2
 import json
+import collections
 
 from os.path import dirname, abspath
 from termcolor import colored
+
+GIT_EMPTY_TREE_ID = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 
 class PrintManager:
 
@@ -84,9 +87,12 @@ class FileDifferences:
   def get_fn_names(self, prev):
     target = os.getcwd() + '/repo/' + self.filename if not prev else os.getcwd() + '/repo_prev/' + self.filename
     fn_table = subprocess.check_output(['ctags', '-x', '--c-kinds=fp', '--fields=+ne', '--output-format=json', target]).decode('utf-8').strip().split('\n')
+    
     fn_map = {}
-
+    
     for obj in fn_table:
+      if not obj:
+        continue
       fn_data = json.loads(obj)
       fn_map[fn_data['name']] = FnAttributes(fn_data['name'], fn_data['line'], fn_data['end'] if 'end' in fn_data else fn_data['line'], fn_data['pattern'])
 
@@ -142,11 +148,17 @@ class RepoManager:
   def __init__(self, repo_url, cache, print_only_fn):
     self.repo_url = repo_url
     self.cache = cache
-    self.allowed_extensions = ['.c', '.h']
+    self.allowed_extensions = ['.c']#, '.h']
     self.only_fn = print_only_fn
+    self.fn_updated_per_commit = {}
+
+  def get_repo_paths(self):
+    # Path where repo is supposed to be
+    cwd = os.getcwd()
+    return cwd + '/repo', cwd + '/repo_prev'
 
   # Handles the cloning of a repo
-  def clone_repo(self, repo_path, hash):
+  def clone_repo(self, repo_path, commit_hash=''):
     repo = None
 
     try:
@@ -164,12 +176,13 @@ class RepoManager:
       PrintManager.print("Invalid URL!")
       sys.exit(1)
 
-    hash_oid = pygit2.Oid(hex=hash)
-    repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
+    if commit_hash:
+      hash_oid = pygit2.Oid(hex=commit_hash)
+      repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
 
     return repo
 
-  def get_repo(self, repo_path, repo_hash):
+  def get_repo(self, repo_path, repo_hash=''):
     # Keep track of paths of cloned repos
     RepoManager.cloned_repos_paths.append(repo_path)
 
@@ -209,7 +222,7 @@ class RepoManager:
         # Check that commits match
         current_hash = repo.revparse_single('HEAD')
         PrintManager.print('Current commit (patch): ' + current_hash.hex)
-        if current_hash.hex != repo_hash:
+        if repo_hash and current_hash.hex != repo_hash:
           PrintManager.print('Changing to desired commit...')
           hash_oid = pygit2.Oid(hex=repo_hash)
           repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
@@ -250,17 +263,20 @@ class RepoManager:
 
   def compare_patch_to_prev(self, patch_hash):
     curr_repo_path, prev_repo_path = self.get_repo_paths()
+
     curr_repo = self.get_repo(curr_repo_path, patch_hash)
 
     # Get diff between patch commit and previous commit
     prev = curr_repo.revparse_single('HEAD~')
     curr = curr_repo.revparse_single('HEAD')
-    PrintManager.print("Comparing with previous commit: " + prev.hex)
-    PrintManager.print()
-    diff = curr_repo.diff(prev, curr, context_lines=0)
 
     # Also get previous version of repo
     prev_repo = self.get_repo(prev_repo_path, prev.hex)
+
+    PrintManager.print("Comparing with previous commit: " + prev.hex)
+    PrintManager.print()
+
+    diff = curr_repo.diff(prev, curr, context_lines=0)
 
     # Write diff file
     diff_file = open('diffs', 'w')
@@ -270,11 +286,57 @@ class RepoManager:
     diff_summary = self.compute_diffs(diff)
     PrintManager.print_relevant_diff(diff_summary, self.only_fn) 
 
-  def get_repo_paths(self):
-    # Path where repo is supposed to be
+  @staticmethod
+  def repo_to_commit(repo, commit_hash):
+    repo.reset(pygit2.Oid(hex=commit_hash), pygit2.GIT_RESET_HARD)
+
+  def get_updated_fn_per_commit(self):
+    RepoManager.initial_cleanup()
+
+    curr_repo_path, prev_repo_path = self.get_repo_paths()
+
+    patch_repo = self.get_repo(curr_repo_path)
+    original_repo = self.get_repo(prev_repo_path)
+
+    # patch_repo.checkout(patch_repo.lookup_branch('master'))
+    # original_repo.checkout(original_repo.lookup_branch('master'))
+
+    for commit in patch_repo.walk(patch_repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL):
+      patch_hash, original_hash = commit.hex, commit.parents[0].hex if commit.parents else None
+
+      empty_tree = original_repo.revparse_single(GIT_EMPTY_TREE_ID)
+
+      RepoManager.repo_to_commit(patch_repo, patch_hash)
+      if original_hash:
+        RepoManager.repo_to_commit(original_repo, original_hash)
+
+      
+      diff = patch_repo.diff(original_repo.revparse_single('HEAD'), patch_repo.revparse_single('HEAD') if original_hash else empty_tree, context_lines=0)
+      diff_summary = self.compute_diffs(diff)
+
+      for diff_info in diff_summary:
+        idx = len(diff_info.fn_to_changed_lines)
+        if idx in self.fn_updated_per_commit:
+          self.fn_updated_per_commit[idx].append(patch_hash)
+        else:
+          self.fn_updated_per_commit[idx] = [patch_hash]
+      # PrintManager.print_relevant_diff(diff_summary, self.only_fn) 
+
+  def print_fn_per_commit(self):
+    ordered = collections.OrderedDict(sorted(self.fn_updated_per_commit.items()))
+
+    for fn_no, commits in ordered.items():
+      # print('%s functions updated - %s commits' % (fn_no, len(commits)))
+      print('%s commits update %s functions' % (len(commits), fn_no))
+
+  @staticmethod
+  def initial_cleanup():
     cwd = os.getcwd()
-    return cwd + '/repo', cwd + '/repo_prev'
-  
+    if (os.path.isdir('repo')):
+      shutil.rmtree(cwd + '/repo')
+    if (os.path.isdir('repo_prev')):
+      shutil.rmtree(cwd + '/repo_prev')
+
   def cleanup(self):
     if not self.cache:
       for path in RepoManager.cloned_repos_paths:
@@ -300,7 +362,10 @@ def main(main_args):
 
   repo_manager = RepoManager(args['gitrepo'], args['cache'], bool(args['fn_names']))
    
-  repo_manager.compare_patch_to_prev(args['hash'])
+  # repo_manager.compare_patch_to_prev(args['hash'])
+
+  repo_manager.get_updated_fn_per_commit()
+  repo_manager.print_fn_per_commit()
 
   repo_manager.cleanup()
 
