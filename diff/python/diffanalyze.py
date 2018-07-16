@@ -9,7 +9,9 @@ import getpass
 import pygit2
 import json
 import collections
+import matplotlib.pyplot as plt
 
+from matplotlib.ticker import MaxNLocator
 from os.path import dirname, abspath
 from termcolor import colored
 
@@ -328,12 +330,27 @@ class RepoManager:
           self.fn_updated_per_commit[idx] = [patch_hash]
       # PrintManager.print_relevant_diff(diff_summary, self.only_fn) 
 
-  def print_fn_per_commit(self):
+  def order_results(self):
     ordered = collections.OrderedDict(sorted(self.fn_updated_per_commit.items()))
 
     for fn_no, commits in ordered.items():
+      ordered[fn_no] = len(commits)
+
+    return ordered
+
+  def print_fn_per_commit(self):
+    ordered = self.order_results()
+
+    for fn_no, commits_no in ordered.items():
       # print('%s functions updated - %s commits' % (fn_no, len(commits)))
-      print('%s commits update %s functions' % (len(commits), fn_no))
+      print('%s %s %s %s functions' % (commits_no, 'commits' if commits_no > 1 else 'commit', 'update' if commits_no > 1 else 'updates' , fn_no))
+  
+  def plot_fn_per_commit(self):
+    ordered_dict = self.order_results()
+    plot = plt.bar(ordered_dict.keys(), ordered_dict.values(), width=0.5, color='g')
+    plt.xlabel('Functions changed')
+    plt.ylabel('Commits')
+    plt.show()
 
   @staticmethod
   def initial_cleanup():
@@ -354,7 +371,7 @@ def main(main_args):
   parser = argparse.ArgumentParser(description='Outputs a list of patched functions and the corresponding source code lines.')
 
   parser.add_argument('gitrepo', metavar='repo', help='git repo url')
-  parser.add_argument('hash', help='patch hash')
+  parser.add_argument('-hash', help='patch hash')
   parser.add_argument('--only-function-names', dest='fn_names', action='store_true', help='display only a list of function names')
   parser.add_argument('--cache', action='store_true', help='do not delete cloned repos after finishing')
   parser.add_argument('--verbose', action='store_true', help='display helpful progress messages')
@@ -368,10 +385,11 @@ def main(main_args):
 
   repo_manager = RepoManager(args['gitrepo'], args['cache'], bool(args['fn_names']))
    
-  # repo_manager.compare_patch_to_prev(args['hash'])
-
-  repo_manager.get_updated_fn_per_commit()
-  repo_manager.print_fn_per_commit()
+  if args['hash']:
+    repo_manager.compare_patch_to_prev(args['hash'])
+  else:
+    repo_manager.get_updated_fn_per_commit()
+    repo_manager.plot_fn_per_commit()
 
   repo_manager.cleanup()
 
