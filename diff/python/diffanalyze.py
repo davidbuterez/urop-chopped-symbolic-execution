@@ -322,12 +322,15 @@ class RepoManager:
       diff = patch_repo.diff(original_repo.revparse_single('HEAD'), patch_repo.revparse_single('HEAD') if original_hash else empty_tree, context_lines=0)
       diff_summary = self.compute_diffs(diff)
 
+      updated_fn = 0
+
       for diff_info in diff_summary:
-        idx = len(diff_info.fn_to_changed_lines)
-        if idx in self.fn_updated_per_commit:
-          self.fn_updated_per_commit[idx].append(patch_hash)
-        else:
-          self.fn_updated_per_commit[idx] = [patch_hash]
+        updated_fn += len(diff_info.fn_to_changed_lines)
+
+      if updated_fn in self.fn_updated_per_commit:
+        self.fn_updated_per_commit[updated_fn].append(patch_hash)
+      else:
+          self.fn_updated_per_commit[updated_fn] = [patch_hash]
       # PrintManager.print_relevant_diff(diff_summary, self.only_fn) 
 
   def order_results(self):
@@ -350,6 +353,7 @@ class RepoManager:
     plot = plt.bar(ordered_dict.keys(), ordered_dict.values(), width=0.5, color='g')
     plt.xlabel('Functions changed')
     plt.ylabel('Commits')
+    plt.savefig('histogram.pdf', bbox_inches='tight')
     plt.show()
 
   @staticmethod
