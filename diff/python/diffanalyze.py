@@ -93,11 +93,12 @@ class FileDifferences:
     proc = subprocess.Popen(['ctags', '-x', '--c-kinds=fp', '--fields=+ne', '--output-format=json', target], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     out, err = proc.communicate()
-    fn_table = out.decode('utf-8').strip().split('\n')
 
     if err:
       return fn_map
 
+    fn_table = out.decode('utf-8').strip().split('\n')
+    
     for obj in fn_table:
       if not obj:
         continue
@@ -298,7 +299,7 @@ class RepoManager:
   def repo_to_commit(repo, commit_hash):
     repo.reset(pygit2.Oid(hex=commit_hash), pygit2.GIT_RESET_HARD)
 
-  def get_updated_fn_per_commit(self):
+  def get_updated_fn_per_commit(self, skip_initial):
     RepoManager.initial_cleanup()
 
     curr_repo_path, prev_repo_path = self.get_repo_paths()
@@ -327,10 +328,17 @@ class RepoManager:
       for diff_info in diff_summary:
         updated_fn += len(diff_info.fn_to_changed_lines)
 
+      # if updated_fn == 0:
+      #   print("Zero : %s" % patch_hash)
+
+      if not original_hash and skip_initial:
+        print('Skipping original commit...')
+        continue
+
       if updated_fn in self.fn_updated_per_commit:
         self.fn_updated_per_commit[updated_fn].append(patch_hash)
       else:
-          self.fn_updated_per_commit[updated_fn] = [patch_hash]
+        self.fn_updated_per_commit[updated_fn] = [patch_hash]
       # PrintManager.print_relevant_diff(diff_summary, self.only_fn) 
 
   def order_results(self):
@@ -379,6 +387,7 @@ def main(main_args):
   parser.add_argument('--only-function-names', dest='fn_names', action='store_true', help='display only a list of function names')
   parser.add_argument('--cache', action='store_true', help='do not delete cloned repos after finishing')
   parser.add_argument('--verbose', action='store_true', help='display helpful progress messages')
+  parser.add_argument('--skip-initial', dest='skip', action='store_true', help='skip initial commit - can be very large')
 
   # Dictionary of arguments
   args_orig = parser.parse_args(main_args)
@@ -392,7 +401,7 @@ def main(main_args):
   if args['hash']:
     repo_manager.compare_patch_to_prev(args['hash'])
   else:
-    repo_manager.get_updated_fn_per_commit()
+    repo_manager.get_updated_fn_per_commit(args['skip'])
     repo_manager.plot_fn_per_commit()
 
   repo_manager.cleanup()
