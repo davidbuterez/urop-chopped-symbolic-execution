@@ -81,10 +81,18 @@ class FileDifferences:
   
   def __init__(self, filename):
     self.filename = filename
-    self.file_extension = filename[filename.rfind('.'):]
+    self.file_extension = FileDifferences.get_extension(filename)
     self.current_fn_map = self.get_fn_names(prev=False)
     self.prev_fn_map = self.get_fn_names(prev=True)
     self.fn_to_changed_lines = {}
+
+  @staticmethod
+  def get_extension(filename):
+    found = filename.rfind('.')
+    if found >= 0:
+      return filename[found:]
+    else:
+      return 'none'
 
   def get_fn_names(self, prev):
     fn_map = {}
@@ -99,32 +107,35 @@ class FileDifferences:
 
     fn_table = out.decode('utf-8').strip().split('\n')
     
+    #TODO: only looks at function code excluding prototypes - maybe sometime changing prototypes would be useful
     for obj in fn_table:
       if not obj:
         continue
       fn_data = json.loads(obj)
-      fn_map[fn_data['name']] = FnAttributes(fn_data['name'], fn_data['line'], fn_data['end'] if 'end' in fn_data else fn_data['line'], fn_data['pattern'])
+      new_item = FnAttributes(fn_data['name'], fn_data['line'], fn_data['end'] if 'end' in fn_data else fn_data['line'], fn_data['pattern'])
+      if fn_data['name'] in fn_map and 'kind' in fn_data and fn_data['kind'] == 'function':
+        fn_map[fn_data['name']].append(new_item)
+      elif 'kind' in fn_data and fn_data['kind'] == 'function':
+        fn_map[fn_data['name']] = [new_item]
 
     return fn_map
 
   def match_lines_to_fn(self, new_lines, old_lines):
-    for fn_name in self.current_fn_map.keys():
+    for fn_name in set(self.current_fn_map.keys()).union(set(self.prev_fn_map.keys())):
 
       added, removed = [], []
 
       if fn_name in self.current_fn_map:
-        new_fn_attr = self.current_fn_map[fn_name]
-
-        for new_line_no in new_lines:
-          if new_line_no >= new_fn_attr.start_line and new_line_no <= new_fn_attr.end_line:
-            added.append(new_line_no)
+        for new_fn_attr in self.current_fn_map[fn_name]:
+          for new_line_no in new_lines:
+            if new_line_no >= new_fn_attr.start_line and new_line_no <= new_fn_attr.end_line:
+              added.append(new_line_no)
 
       if fn_name in self.prev_fn_map:
-        old_fn_attr = self.prev_fn_map[fn_name]
-
-        for old_line_no in old_lines:
-          if old_line_no >= old_fn_attr.start_line and old_line_no <= old_fn_attr.end_line:
-            removed.append(old_line_no)
+        for old_fn_attr in self.prev_fn_map[fn_name]:
+          for old_line_no in old_lines:
+            if old_line_no >= old_fn_attr.start_line and old_line_no <= old_fn_attr.end_line:
+              removed.append(old_line_no)
       
       if fn_name in self.fn_to_changed_lines:
         self.fn_to_changed_lines[fn_name].added_lines.extend(added)
@@ -160,6 +171,8 @@ class RepoManager:
     self.allowed_extensions = ['.c']#, '.h']
     self.only_fn = print_only_fn
     self.fn_updated_per_commit = {}
+    self.other_changed = {}
+
 
   def get_repo_paths(self):
     # Path where repo is supposed to be
@@ -240,16 +253,32 @@ class RepoManager:
     PrintManager.print()
     return repo
 
-  def compute_diffs(self, diff):
+  def combine_dicts(self, update_dict):
+    for k, v in update_dict.items():
+      if k in self.other_changed:
+        self.other_changed[k].update(v)
+      else:
+        self.other_changed[k] = v
+
+  def compute_diffs(self, diff, patch_hash=''):
     diff_summary = []
     patches = list(diff.__iter__())
+
+    update_others = {}
+    has_c_files = False
 
     for patch in patches:
       filename = patch.delta.new_file.path
 
-      extension = filename[filename.rfind('.'):]
+      extension = FileDifferences.get_extension(filename)
       if extension not in self.allowed_extensions:
+        if extension not in update_others:
+          update_others[extension] = set()
+        
+        update_others[extension].add(patch_hash)
         continue
+
+      has_c_files = True
 
       diff_data = FileDifferences(filename)
 
@@ -268,6 +297,21 @@ class RepoManager:
       
       diff_summary.append(diff_data)
     
+    has_updated_fn = False
+
+    #TODO: make function return boolean result for success
+    for data in diff_summary:
+      if data.fn_to_changed_lines:
+        has_updated_fn = True
+
+    if has_c_files and not has_updated_fn:
+      if '.c' not in update_others:
+       update_others['.c'] = set()
+      update_others['.c'].add(patch_hash)
+
+    if update_others:
+      self.combine_dicts(update_others)
+
     return diff_summary
 
   def compare_patch_to_prev(self, patch_hash):
@@ -313,18 +357,21 @@ class RepoManager:
     for commit in patch_repo.walk(patch_repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL):
       patch_hash, original_hash = commit.hex, commit.parents[0].hex if commit.parents else None
 
+      # if patch_hash == '0f8cb206220b7b3592fdd0ea7360193375a28408':
+      #   print('oh yas')
+
       empty_tree = original_repo.revparse_single(GIT_EMPTY_TREE_ID)
 
       RepoManager.repo_to_commit(patch_repo, patch_hash)
       if original_hash:
         RepoManager.repo_to_commit(original_repo, original_hash)
 
-      
       diff = patch_repo.diff(original_repo.revparse_single('HEAD'), patch_repo.revparse_single('HEAD') if original_hash else empty_tree, context_lines=0)
-      diff_summary = self.compute_diffs(diff)
+      diff_summary = self.compute_diffs(diff, patch_hash)
 
       updated_fn = 0
 
+      #TODO maybe make compute diffs return number of changed fns
       for diff_info in diff_summary:
         updated_fn += len(diff_info.fn_to_changed_lines)
 
@@ -341,13 +388,25 @@ class RepoManager:
         self.fn_updated_per_commit[updated_fn] = [patch_hash]
       # PrintManager.print_relevant_diff(diff_summary, self.only_fn) 
 
-  def order_results(self):
-    ordered = collections.OrderedDict(sorted(self.fn_updated_per_commit.items()))
+  def order_results(self, other=False):
+    target = None
+    if other:
+      target = self.other_changed.items()
+    else:
+      target = self.fn_updated_per_commit.items()
+      
+    ordered = collections.OrderedDict(sorted(target))
 
     for fn_no, commits in ordered.items():
       ordered[fn_no] = len(commits)
 
     return ordered
+
+  def debug_fn_per_commit(self):
+    for fn_no, commits in self.fn_updated_per_commit.items():
+      print('%s commits changed %s functions' % (len(commits), fn_no))
+      for commit in sorted(commits):
+        print(commit)
 
   def print_fn_per_commit(self):
     ordered = self.order_results()
@@ -358,11 +417,51 @@ class RepoManager:
   
   def plot_fn_per_commit(self):
     ordered_dict = self.order_results()
-    plot = plt.bar(ordered_dict.keys(), ordered_dict.values(), width=0.5, color='g')
+    plot = plt.bar(ordered_dict.keys(), ordered_dict.values(), width=0.8, color='g')
     plt.xlabel('Functions changed')
     plt.ylabel('Commits')
     plt.savefig('histogram.pdf', bbox_inches='tight')
     plt.show()
+
+  def print_others(self):
+    for ext, commits in self.other_changed.items():
+      print('Extension: %s - %s' % (ext, len(commits)))
+      for commit in sorted(commits):
+        print(commit)
+    print()
+
+  def plot_other_changed(self):
+    ordered_other_dict = self.order_results(other=True)
+
+    for ext, commits_no in ordered_other_dict.items():
+      print('%s commits updated %s files' % (commits_no, ext))
+
+    plot = plt.bar(ordered_other_dict.keys(), ordered_other_dict.values(), width=0.8, color='b')
+    plt.xticks(rotation='vertical')
+    plt.subplots_adjust(bottom=0.15)
+    plt.xlabel('Extensions')
+    plt.ylabel('Commits')
+    plt.savefig('other_changed.pdf')
+    plt.show()
+
+  def summary(self):
+    print('Information from other changed files:')
+    print('How many commits changed files of each extension (no functions changed):')
+    ordered_other_dict = self.order_results(other=True)
+    for ext, commits_no in ordered_other_dict.items():
+      print('%s commits updated %s files' % (commits_no, ext))
+    
+    print('---------------------------------------------------------------------------------------')
+
+    print('Information from function updates:')
+    print('Commits that did not change any functions: %s' % (len(self.fn_updated_per_commit[0]),))
+    print('Commits that changed N functions:')
+    ordered = self.order_results()
+    s = 0
+    for fn_no, commits_no in ordered.items():
+      s += commits_no
+      print('%s %s %s %s functions' % (commits_no, 'commits' if commits_no > 1 else 'commit', 'update' if commits_no > 1 else 'updates' , fn_no))
+    print('Commits seen: %s' % (s,))
 
   @staticmethod
   def initial_cleanup():
@@ -402,7 +501,12 @@ def main(main_args):
     repo_manager.compare_patch_to_prev(args['hash'])
   else:
     repo_manager.get_updated_fn_per_commit(args['skip'])
-    repo_manager.plot_fn_per_commit()
+    # repo_manager.print_fn_per_commit()
+    # repo_manager.plot_fn_per_commit()
+    # repo_manager.plot_other_changed()
+    # repo_manager.print_others()
+    # repo_manager.debug_fn_per_commit()
+    repo_manager.summary()
 
   repo_manager.cleanup()
 
