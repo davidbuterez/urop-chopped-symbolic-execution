@@ -150,7 +150,7 @@ class FileDifferences:
 
     if not pretty:
       PrintManager.print('Updated functions:')
-      fn_list_file = open('../updated_functions', 'w')
+      fn_list_file = open('../updated_functions', 'a')
 
     for fn_name, lines in self.fn_to_changed_lines.items():
       if pretty and lines:
@@ -158,8 +158,11 @@ class FileDifferences:
         self.fn_to_changed_lines[fn_name].print_added_lines()
         self.fn_to_changed_lines[fn_name].print_removed_lines()
       elif lines:
-        print('  %s' % colored(fn_name, 'green'))
+        print('%s' % colored(fn_name, 'green'))
         fn_list_file.write('%s\n' % fn_name)
+
+    if not pretty:
+      fn_list_file.close()
 
 class RepoManager:
 
@@ -192,10 +195,10 @@ class RepoManager:
       try:
         repo = pygit2.clone_repository(self.repo_url, repo_path, callbacks=pygit2.RemoteCallbacks(credentials=cred))
       except ValueError:
-        PrintManager.print("Invalid URL!")
+        print("Invalid URL!")
         sys.exit(1)
     except ValueError:
-      PrintManager.print("Invalid URL!")
+      print("Invalid URL!")
       sys.exit(1)
 
     if commit_hash:
