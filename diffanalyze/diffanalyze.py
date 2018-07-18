@@ -19,7 +19,7 @@ GIT_EMPTY_TREE_ID = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 
 class PrintManager:
 
-  should_print = True
+  should_print = False
   
   @staticmethod
   def print(*args, **kwargs):
@@ -28,21 +28,29 @@ class PrintManager:
 
   @staticmethod
   def print_diff_summary(diff_summary, pretty):
-    for diff_data in diff_summary:
+    for diff_data in diff_summary.file_diffs:
       diff_data.print(pretty)
+
+  @staticmethod
+  def print_diff_summary_simple(diff_summary):
+    for diff_data in diff_summary.file_diffs:
+      diff_data.print_simple()
   
   @staticmethod
-  def print_relevant_diff(diff_summary, only_fn):
-    if diff_summary:
-      PrintManager.print('Displaying patch information:\n')
-
-      if bool(only_fn):
-        PrintManager.print_diff_summary(diff_summary, pretty=False)
-      else:
-        PrintManager.print_diff_summary(diff_summary, pretty=True)
-      PrintManager.print()
+  def print_relevant_diff(diff_summary, print_mode):
+    if print_mode == 'simple':
+      PrintManager.print_diff_summary_simple(diff_summary)
     else:
-      PrintManager.print('No relevant changes detected.')
+      if diff_summary:
+        PrintManager.print('Displaying patch information:\n')
+
+        if print_mode == 'only-fn':
+          PrintManager.print_diff_summary(diff_summary, pretty=False)
+        else:
+          PrintManager.print_diff_summary(diff_summary, pretty=True)
+        PrintManager.print()
+      else:
+        PrintManager.print('No relevant changes detected.')
 
 class ChangedLinesManager:
 
@@ -51,14 +59,12 @@ class ChangedLinesManager:
     self.removed_lines = removed_lines
 
   def print_added_lines(self):
-    print()
     if self.added_lines:
       print('Patch has added lines (new file indices): [', end='')
       print(*self.added_lines, end='')
-      print(']', end='')
+      print(']')
 
   def print_removed_lines(self):
-    print()
     if self.removed_lines:
       print('Patch has removed lines (old file indices): [', end='')
       print(*self.removed_lines, end='')
@@ -159,7 +165,7 @@ class FileDifferences:
 
     for fn_name, lines in self.fn_to_changed_lines.items():
       if pretty and lines:
-        print('%s: In function %s' % (colored(self.filename, 'blue'), colored(fn_name, 'green')), end='')
+        print('%s: In function %s' % (colored(self.filename, 'blue'), colored(fn_name, 'green')))
         self.fn_to_changed_lines[fn_name].print_added_lines()
         self.fn_to_changed_lines[fn_name].print_removed_lines()
       elif lines:
@@ -168,6 +174,12 @@ class FileDifferences:
 
     if not pretty:
       fn_list_file.close()
+  
+  def print_simple(self):
+    for fn_name, lines in self.fn_to_changed_lines.items():
+      if lines:
+        for line in self.fn_to_changed_lines[fn_name].added_lines:
+          print('%s: %s' % (colored(self.filename, 'blue'), line))
 
 class DiffSummary:
   # file_diffs is a list of FileDifferences
@@ -183,11 +195,11 @@ class RepoManager:
 
   cloned_repos_paths = []
 
-  def __init__(self, repo_url, cache, print_only_fn):
+  def __init__(self, repo_url, cache, print_mode):
     self.repo_url = repo_url
     self.cache = cache
     self.allowed_extensions = ['.c']#, '.h']
-    self.only_fn = print_only_fn
+    self.print_mode = print_mode
     self.fn_updated_per_commit = {}
     self.other_changed = {}
 
@@ -352,7 +364,7 @@ class RepoManager:
     diff_file.close() 
 
     diff_summary = self.compute_diffs(diff)
-    PrintManager.print_relevant_diff(diff_summary, self.only_fn) 
+    PrintManager.print_relevant_diff(diff_summary, self.print_mode) 
 
   @staticmethod
   def repo_to_commit(repo, commit_hash):
@@ -366,14 +378,8 @@ class RepoManager:
     patch_repo = self.get_repo(curr_repo_path)
     original_repo = self.get_repo(prev_repo_path)
 
-    # patch_repo.checkout(patch_repo.lookup_branch('master'))
-    # original_repo.checkout(original_repo.lookup_branch('master'))
-
     for commit in patch_repo.walk(patch_repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL):
       patch_hash, original_hash = commit.hex, commit.parents[0].hex if commit.parents else None
-
-      # if patch_hash == '003c8e6e3734c35c8a5d639528548181f0fada7f':
-      #   print('oh yas')
 
       empty_tree = original_repo.revparse_single(GIT_EMPTY_TREE_ID)
 
@@ -394,7 +400,6 @@ class RepoManager:
         self.fn_updated_per_commit[updated_fn].append(patch_hash)
       else:
         self.fn_updated_per_commit[updated_fn] = [patch_hash]
-      # PrintManager.print_relevant_diff(diff_summary, self.only_fn) 
 
   def order_results(self, other=False):
     target = None
@@ -410,69 +415,71 @@ class RepoManager:
 
     return ordered
 
-  def debug_fn_per_commit(self):
-    for fn_no, commits in self.fn_updated_per_commit.items():
-      print('%s commits changed %s functions' % (len(commits), fn_no))
-      for commit in sorted(commits):
-        print(commit)
+  @staticmethod
+  def check_dirs():
+    if not os.path.isdir('img'):
+      os.mkdir('img')
+    if not os.path.isdir('img/skip'):
+      os.mkdir('img/skip')
 
-  def print_fn_per_commit(self):
-    ordered = self.order_results()
-
-    for fn_no, commits_no in ordered.items():
-      # print('%s functions updated - %s commits' % (fn_no, len(commits)))
-      print('%s %s %s %s functions' % (commits_no, 'commits' if commits_no > 1 else 'commit', 'update' if commits_no > 1 else 'updates' , fn_no))
-  
-  def plot_fn_per_commit(self):
+  def plot_fn_per_commit(self, skip):
     ordered_dict = self.order_results()
+    plt.figure(1)
     plot = plt.bar(ordered_dict.keys(), ordered_dict.values(), width=0.8, color='g')
     plt.xlabel('Functions changed')
     plt.ylabel('Commits')
-    plt.savefig('histogram.pdf', bbox_inches='tight')
-    plt.show()
 
-  def print_others(self):
-    for ext, commits in self.other_changed.items():
-      print('Extension: %s - %s' % (ext, len(commits)))
-      for commit in sorted(commits):
-        print(commit)
-    print()
+    RepoManager.check_dirs()
+    path = 'img/skip/' if skip else 'img/'
+    plt.savefig(path + 'function_commits.pdf', bbox_inches='tight')
 
-  def plot_other_changed(self):
+  def plot_fn_per_commit_restricted(self, skip):
+    ordered_dict = self.order_results()
+    plt.figure(2)
+
+    keys = [k for k in ordered_dict.keys() if k > 0 and k <= 25]
+    values = [v for k, v in ordered_dict.items() if k in keys]
+
+    plot = plt.bar(keys, values, width=0.8, color='g')
+    plt.xlabel('Functions changed')
+    plt.ylabel('Commits')
+
+    RepoManager.check_dirs()
+    path = 'img/skip/' if skip else 'img/'
+    plt.savefig(path + 'function_commits_restricted.pdf', bbox_inches='tight')
+
+  def plot_other_changed(self, skip):
     ordered_other_dict = self.order_results(other=True)
-
-    for ext, commits_no in ordered_other_dict.items():
-      print('%s commits updated %s files' % (commits_no, ext))
-
+    plt.figure(3)
     plot = plt.bar(ordered_other_dict.keys(), ordered_other_dict.values(), width=0.8, color='b')
-    plt.xticks(rotation='vertical')
+    plt.xticks(rotation='vertical', fontsize=5)
     plt.subplots_adjust(bottom=0.15)
     plt.xlabel('Extensions')
     plt.ylabel('Commits')
-    plt.savefig('other_changed.pdf')
-    plt.show()
+
+    RepoManager.check_dirs()
+    path = 'img/skip/' if skip else 'img/'
+    plt.savefig(path + 'no_function_commits.pdf', bbox_inches='tight')    
 
   def summary(self):
     print('Information from other changed files:')
     print('How many commits changed files of each extension (no functions changed):')
     ordered_other_dict = self.order_results(other=True)
     for ext, commits_no in ordered_other_dict.items():
-      print('%s commits updated %s files' % (commits_no, ext))
-      for commit in sorted(self.other_changed[ext]):
-        print(commit)
-    
+      if ext != 'none':
+        print('%s commits updated %s files' % (commits_no, ext))
+      else:
+        print('%s commits updated files with no extension (e.g. README, NEWS, etc.)' % (commits_no,))
+
     print('---------------------------------------------------------------------------------------')
 
     print('Information from function updates:')
-    print('Commits that did not change any functions: %s' % (len(self.fn_updated_per_commit[0]),))
     print('Commits that changed N functions:')
     ordered = self.order_results()
     s = 0
     for fn_no, commits_no in ordered.items():
       s += commits_no
       print('%s %s %s %s functions' % (commits_no, 'commits' if commits_no > 1 else 'commit', 'update' if commits_no > 1 else 'updates' , fn_no))
-      for commit in sorted(self.fn_updated_per_commit[fn_no]):
-        print(commit)
     print('Commits seen: %s' % (s,))
 
   @staticmethod
@@ -495,30 +502,38 @@ def main(main_args):
 
   parser.add_argument('gitrepo', metavar='repo', help='git repo url')
   parser.add_argument('-hash', help='patch hash')
-  parser.add_argument('--only-function-names', dest='fn_names', action='store_true', help='display only a list of function names')
-  parser.add_argument('--cache', action='store_true', help='do not delete cloned repos after finishing')
-  parser.add_argument('--verbose', action='store_true', help='display helpful progress messages')
-  parser.add_argument('--skip-initial', dest='skip', action='store_true', help='skip initial commit - can be very large')
+  parser.add_argument('--print-mode', dest='print', choices=['full', 'simple', 'only-fn'], default='full', help='print format')
+  # parser.add_argument('-f', '--only-function-names', dest='fn_names', action='store_true', help='display only a list of function names')
+  parser.add_argument('-c', '--cache', action='store_true', help='do not delete cloned repos after finishing')
+  # parser.add_argument('--verbose', action='store_true', help='display helpful progress messages')
+  parser.add_argument('-s', '--summary', action='store_true', help='prints a summary of the data')
+  parser.add_argument('-p', '--plot', action='store_true', help='save graphs of the generated data')
+  parser.add_argument('-i', '--skip-initial', dest='skip', action='store_true', help='skip initial commit - can be very large')
 
   # Dictionary of arguments
   args_orig = parser.parse_args(main_args)
   args = vars(args_orig)
 
   # Handle printing
-  PrintManager.should_print = bool(args['verbose'])
+  # PrintManager.should_print = bool(args['verbose'])
 
-  repo_manager = RepoManager(args['gitrepo'], bool(args['cache']), bool(args['fn_names']))
+  repo_manager = RepoManager(args['gitrepo'], bool(args['cache']), args['print'])
    
   if args['hash']:
     repo_manager.compare_patch_to_prev(args['hash'])
-  else:
+  elif args['plot'] or args['summary']:
     repo_manager.get_updated_fn_per_commit(args['skip'])
-    # repo_manager.print_fn_per_commit()
-    # repo_manager.plot_fn_per_commit()
-    # repo_manager.plot_other_changed()
-    # repo_manager.print_others()
-    # repo_manager.debug_fn_per_commit()
+
+  if args['summary']:
     repo_manager.summary()
+
+  if args['plot']:
+    manager = plt.get_current_fig_manager()
+    manager.window.showMaximized()
+
+    repo_manager.plot_fn_per_commit(args['skip'])
+    repo_manager.plot_fn_per_commit_restricted(args['skip'])
+    repo_manager.plot_other_changed(args['skip'])
 
   repo_manager.cleanup()
 
