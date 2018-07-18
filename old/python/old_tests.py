@@ -31,24 +31,34 @@ class DiffsTest(unittest.TestCase):
 
   def set_up_no_repo(self):
     repo_path = DiffsTest.curr_path + '/repo'
+    prev_repo_path = DiffsTest.curr_path + '/repo_prev'
+
     if os.path.isdir('repo'):
       shutil.rmtree(repo_path, ignore_errors=True)
+    if os.path.isdir('repo_prev'):
+      shutil.rmtree(prev_repo_path, ignore_errors=True)
 
   def set_up_incorrect_repo(self):
     subprocess.check_call(['git', 'clone', incorrect_url, 'repo'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
   def test(self):
+    # Initial cleanup
+    self.set_up_no_repo()
+
+    full_output_args = [sys.executable, 'getdiffs.py', test_url, sha1, '--verbose']
+    limited_output_args = [sys.executable, 'getdiffs.py', test_url, sha1, '--only-function-names', '--verbose']
+
     # Found repo right hash all output
     self.set_up_correct_repo_right_hash()
 
     correct = 'Found required repo.\nCurrent commit (patch): 4d7add621bf6f54b520a02dd50c3aaf69a43b4f4\nComparing with previous commit: 3335d2691ceba843960d2b0b63c0c72f4dc1a5bc\nDisplaying patch information:\n\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mappend_string\x1b[0m\nPatch has added lines (new file indices): [8 9 10]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mget_length\x1b[0m\nPatch has added lines (new file indices): [4 5 6]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mcheck_password\x1b[0m\nPatch has added lines (new file indices): [13 20]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mmain\x1b[0m\nPatch has added lines (new file indices): [29]\n\n'
-    output = subprocess.check_output([sys.executable, 'getdiffs.py', test_url, sha1])
+    output = subprocess.check_output(full_output_args)
     
-    self.assertEqual(correct, output.decode('utf-8'))
+    self.assertEqual(correct.replace('\r', '').replace('\n', ''), output.decode('utf-8').replace('\r', '').replace('\n', ''))
 
     # Found repo right hash only fn output    
     correct = 'Found required repo.\nCurrent commit (patch): 4d7add621bf6f54b520a02dd50c3aaf69a43b4f4\nComparing with previous commit: 3335d2691ceba843960d2b0b63c0c72f4dc1a5bc\nDisplaying patch information:\n\nUpdated functions:\n  \x1b[32mappend_string\x1b[0m\n  \x1b[32mget_length\x1b[0m\n  \x1b[32mcheck_password\x1b[0m\n  \x1b[32mmain\x1b[0m\n\n'
-    output = subprocess.check_output([sys.executable, 'getdiffs.py', test_url, sha1, '--only-function-names'])
+    output = subprocess.check_output(limited_output_args)
     
     self.assertEqual(correct, output.decode('utf-8'))
 
@@ -56,7 +66,7 @@ class DiffsTest(unittest.TestCase):
     self.set_up_no_repo()
 
     correct = 'No repo found. Cloning...\nCloned repo.\nCurrent commit (patch): 4d7add621bf6f54b520a02dd50c3aaf69a43b4f4\nComparing with previous commit: 3335d2691ceba843960d2b0b63c0c72f4dc1a5bc\nDisplaying patch information:\n\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mappend_string\x1b[0m\nPatch has added lines (new file indices): [8 9 10]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mget_length\x1b[0m\nPatch has added lines (new file indices): [4 5 6]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mcheck_password\x1b[0m\nPatch has added lines (new file indices): [13 20]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mmain\x1b[0m\nPatch has added lines (new file indices): [29]\n\n'
-    output = subprocess.check_output([sys.executable, 'getdiffs.py', test_url, sha1])
+    output = subprocess.check_output(full_output_args)
     
     self.assertEqual(correct, output.decode('utf-8'))
 
@@ -64,7 +74,7 @@ class DiffsTest(unittest.TestCase):
     self.set_up_no_repo()
 
     correct = 'No repo found. Cloning...\nCloned repo.\nCurrent commit (patch): 4d7add621bf6f54b520a02dd50c3aaf69a43b4f4\nComparing with previous commit: 3335d2691ceba843960d2b0b63c0c72f4dc1a5bc\nDisplaying patch information:\n\nUpdated functions:\n  \x1b[32mappend_string\x1b[0m\n  \x1b[32mget_length\x1b[0m\n  \x1b[32mcheck_password\x1b[0m\n  \x1b[32mmain\x1b[0m\n\n'
-    output = subprocess.check_output([sys.executable, 'getdiffs.py', test_url, sha1, '--only-function-names'])
+    output = subprocess.check_output(limited_output_args)
     
     self.assertEqual(correct, output.decode('utf-8'))
 
@@ -74,7 +84,7 @@ class DiffsTest(unittest.TestCase):
     self.set_up_incorrect_repo()
 
     correct = 'Found repo is incorrect. Cloning required repo...\nCloned repo.\nCurrent commit (patch): 4d7add621bf6f54b520a02dd50c3aaf69a43b4f4\nComparing with previous commit: 3335d2691ceba843960d2b0b63c0c72f4dc1a5bc\nDisplaying patch information:\n\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mappend_string\x1b[0m\nPatch has added lines (new file indices): [8 9 10]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mget_length\x1b[0m\nPatch has added lines (new file indices): [4 5 6]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mcheck_password\x1b[0m\nPatch has added lines (new file indices): [13 20]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mmain\x1b[0m\nPatch has added lines (new file indices): [29]\n\n'
-    output = subprocess.check_output([sys.executable, 'getdiffs.py', test_url, sha1])
+    output = subprocess.check_output(full_output_args)
     
     self.assertEqual(correct, output.decode('utf-8'))
 
@@ -84,7 +94,7 @@ class DiffsTest(unittest.TestCase):
     self.set_up_incorrect_repo()
 
     correct = 'Found repo is incorrect. Cloning required repo...\nCloned repo.\nCurrent commit (patch): 4d7add621bf6f54b520a02dd50c3aaf69a43b4f4\nComparing with previous commit: 3335d2691ceba843960d2b0b63c0c72f4dc1a5bc\nDisplaying patch information:\n\nUpdated functions:\n  \x1b[32mappend_string\x1b[0m\n  \x1b[32mget_length\x1b[0m\n  \x1b[32mcheck_password\x1b[0m\n  \x1b[32mmain\x1b[0m\n\n'
-    output = subprocess.check_output([sys.executable, 'getdiffs.py', test_url, sha1, '--only-function-names'])
+    output = subprocess.check_output(limited_output_args)
     
     self.assertEqual(correct, output.decode('utf-8'))
 
@@ -94,7 +104,7 @@ class DiffsTest(unittest.TestCase):
     self.set_up_correct_repo_wrong_hash()
 
     correct = 'Found required repo.\nCurrent commit (patch): 65eea916396822dc4963c597063742b74e995ff9\nChanging to desired commit...\nChanged to 4d7add621bf6f54b520a02dd50c3aaf69a43b4f4.\nComparing with previous commit: 3335d2691ceba843960d2b0b63c0c72f4dc1a5bc\nDisplaying patch information:\n\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mappend_string\x1b[0m\nPatch has added lines (new file indices): [8 9 10]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mget_length\x1b[0m\nPatch has added lines (new file indices): [4 5 6]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mcheck_password\x1b[0m\nPatch has added lines (new file indices): [13 20]\n\x1b[34mpassword.c\x1b[0m: In function \x1b[32mmain\x1b[0m\nPatch has added lines (new file indices): [29]\n\n'
-    output = subprocess.check_output([sys.executable, 'getdiffs.py', test_url, sha1])
+    output = subprocess.check_output(full_output_args)
     
     self.assertEqual(correct, output.decode('utf-8'))
 
@@ -104,7 +114,7 @@ class DiffsTest(unittest.TestCase):
     self.set_up_correct_repo_wrong_hash()
 
     correct = 'Found required repo.\nCurrent commit (patch): 65eea916396822dc4963c597063742b74e995ff9\nChanging to desired commit...\nChanged to 4d7add621bf6f54b520a02dd50c3aaf69a43b4f4.\nComparing with previous commit: 3335d2691ceba843960d2b0b63c0c72f4dc1a5bc\nDisplaying patch information:\n\nUpdated functions:\n  \x1b[32mappend_string\x1b[0m\n  \x1b[32mget_length\x1b[0m\n  \x1b[32mcheck_password\x1b[0m\n  \x1b[32mmain\x1b[0m\n\n'
-    output = subprocess.check_output([sys.executable, 'getdiffs.py', test_url, sha1, '--only-function-names'])
+    output = subprocess.check_output(limited_output_args)
     
     self.assertEqual(correct, output.decode('utf-8'))
 

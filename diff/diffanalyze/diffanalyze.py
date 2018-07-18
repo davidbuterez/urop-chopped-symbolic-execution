@@ -191,7 +191,6 @@ class RepoManager:
     self.fn_updated_per_commit = {}
     self.other_changed = {}
 
-
   def get_repo_paths(self):
     # Path where repo is supposed to be
     cwd = os.getcwd()
@@ -360,7 +359,7 @@ class RepoManager:
   def repo_to_commit(repo, commit_hash):
     repo.reset(pygit2.Oid(hex=commit_hash), pygit2.GIT_RESET_HARD)
 
-  def get_updated_fn_per_commit(self, skip_initial):
+  def get_updated_fn_per_commit(self, skip_initial=False):
     RepoManager.initial_cleanup()
 
     curr_repo_path, prev_repo_path = self.get_repo_paths()
@@ -374,8 +373,8 @@ class RepoManager:
     for commit in patch_repo.walk(patch_repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL):
       patch_hash, original_hash = commit.hex, commit.parents[0].hex if commit.parents else None
 
-      if patch_hash == '003c8e6e3734c35c8a5d639528548181f0fada7f':
-        print('oh yas')
+      # if patch_hash == '003c8e6e3734c35c8a5d639528548181f0fada7f':
+      #   print('oh yas')
 
       empty_tree = original_repo.revparse_single(GIT_EMPTY_TREE_ID)
 
@@ -460,7 +459,7 @@ class RepoManager:
     ordered_other_dict = self.order_results(other=True)
     for ext, commits_no in ordered_other_dict.items():
       print('%s commits updated %s files' % (commits_no, ext))
-      for commit in self.other_changed[ext]:
+      for commit in sorted(self.other_changed[ext]):
         print(commit)
     
     print('---------------------------------------------------------------------------------------')
@@ -507,7 +506,7 @@ def main(main_args):
   # Handle printing
   PrintManager.should_print = bool(args['verbose'])
 
-  repo_manager = RepoManager(args['gitrepo'], args['cache'], bool(args['fn_names']))
+  repo_manager = RepoManager(args['gitrepo'], bool(args['cache']), bool(args['fn_names']))
    
   if args['hash']:
     repo_manager.compare_patch_to_prev(args['hash'])
