@@ -121,6 +121,8 @@ class FileDifferences:
     return fn_map
 
   def match_lines_to_fn(self, new_lines, old_lines):
+    success = False
+
     for fn_name in set(self.current_fn_map.keys()).union(set(self.prev_fn_map.keys())):
 
       added, removed = [], []
@@ -140,10 +142,13 @@ class FileDifferences:
       if fn_name in self.fn_to_changed_lines:
         self.fn_to_changed_lines[fn_name].added_lines.extend(added)
         self.fn_to_changed_lines[fn_name].removed_lines.extend(removed)
+        success = True
       elif added or removed:
         self.fn_to_changed_lines[fn_name] = ChangedLinesManager(added, removed)
+        success = True
+      
+    return success
         
-
   # Prints all the data that this object has
   def print(self, pretty):
     fn_list_file = None
@@ -163,6 +168,16 @@ class FileDifferences:
 
     if not pretty:
       fn_list_file.close()
+
+class DiffSummary:
+  # file_diffs is a list of FileDifferences
+  def __init__(self):
+    self.file_diffs = []
+    self.updated_fn_count = 0
+
+  def add_file_diff(self, file_diff):
+    self.file_diffs.append(file_diff)
+    self.updated_fn_count = len(file_diff.fn_to_changed_lines)
 
 class RepoManager:
 
@@ -264,11 +279,14 @@ class RepoManager:
         self.other_changed[k] = v
 
   def compute_diffs(self, diff, patch_hash=''):
-    diff_summary = []
+    diff_summary = DiffSummary()
     patches = list(diff.__iter__())
 
     update_others = {}
+
+    updated_fn_count = 0
     has_c_files = False
+    has_updated_fn = False
 
     for patch in patches:
       filename = patch.delta.new_file.path
@@ -296,21 +314,17 @@ class RepoManager:
             else:
               old_fn_lines.append(diff_line.old_lineno)
 
-        diff_data.match_lines_to_fn(new_fn_lines, old_fn_lines)
-      
-      diff_summary.append(diff_data)
-    
-    has_updated_fn = False
+        if diff_data.match_lines_to_fn(new_fn_lines, old_fn_lines):
+          updated_fn_count += len(diff_data.fn_to_changed_lines)
+          has_updated_fn = True
 
-    #TODO: make function return boolean result for success
-    for data in diff_summary:
-      if data.fn_to_changed_lines:
-        has_updated_fn = True
+      diff_summary.add_file_diff(diff_data)
 
     if has_c_files and not has_updated_fn:
-      if '.c' not in update_others:
-       update_others['.c'] = set()
-      update_others['.c'].add(patch_hash)
+      c_ext = '.c'
+      if c_ext not in update_others:
+       update_others[c_ext] = set()
+      update_others[c_ext].add(patch_hash)
 
     if update_others:
       self.combine_dicts(update_others)
@@ -360,8 +374,8 @@ class RepoManager:
     for commit in patch_repo.walk(patch_repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL):
       patch_hash, original_hash = commit.hex, commit.parents[0].hex if commit.parents else None
 
-      # if patch_hash == '0f8cb206220b7b3592fdd0ea7360193375a28408':
-      #   print('oh yas')
+      if patch_hash == '003c8e6e3734c35c8a5d639528548181f0fada7f':
+        print('oh yas')
 
       empty_tree = original_repo.revparse_single(GIT_EMPTY_TREE_ID)
 
@@ -372,14 +386,7 @@ class RepoManager:
       diff = patch_repo.diff(original_repo.revparse_single('HEAD'), patch_repo.revparse_single('HEAD') if original_hash else empty_tree, context_lines=0)
       diff_summary = self.compute_diffs(diff, patch_hash)
 
-      updated_fn = 0
-
-      #TODO maybe make compute diffs return number of changed fns
-      for diff_info in diff_summary:
-        updated_fn += len(diff_info.fn_to_changed_lines)
-
-      # if updated_fn == 0:
-      #   print("Zero : %s" % patch_hash)
+      updated_fn = diff_summary.updated_fn_count
 
       if not original_hash and skip_initial:
         print('Skipping original commit...')
@@ -453,6 +460,8 @@ class RepoManager:
     ordered_other_dict = self.order_results(other=True)
     for ext, commits_no in ordered_other_dict.items():
       print('%s commits updated %s files' % (commits_no, ext))
+      for commit in self.other_changed[ext]:
+        print(commit)
     
     print('---------------------------------------------------------------------------------------')
 
