@@ -49,7 +49,7 @@ class DiffsTest(unittest.TestCase):
     pygit2.clone_repository(url, os.getcwd() + '/findutils')
 
   def test_output_matches_git_log(self):
-    repo_manager = diffanalyze.RepoManager(url, cache=False, print_only_fn=False)
+    repo_manager = diffanalyze.RepoManager(url, cache=False, print_mode='only-fn')
     repo_manager.get_updated_fn_per_commit()
 
     for ext, commits in repo_manager.other_changed.items():
