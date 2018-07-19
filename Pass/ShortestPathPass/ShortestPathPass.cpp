@@ -14,7 +14,7 @@ struct ShortestPathPass : public CallGraphSCCPass {
   bool runOnSCC(CallGraphSCC &SCC) override {
     errs() << "Size = " << SCC.size();
 
-    for (auto const &it = SCC.begin(); it != SCC.end(); it++) {
+    for (std::vector<CallGraphNode*>::const_iterator it = SCC.begin(); it != SCC.end(); it++) {
       
     }
 
