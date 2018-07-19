@@ -222,8 +222,8 @@ class RepoManager:
       except ValueError:
         print("Invalid URL!")
         sys.exit(1)
-    except ValueError:
-      print("Invalid URL!")
+    except Exception as e:
+      print(e)
       sys.exit(1)
 
     if commit_hash:
@@ -279,7 +279,6 @@ class RepoManager:
           PrintManager.print('Changed to %s.' % (repo_hash,))
     
     PrintManager.print()
-    print('Cloned boss')
     return repo
 
   def compute_diffs(self, diff, patch_hash=''):

@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import diffanalyze
 
 findutils = 'https://git.savannah.gnu.org/git/findutils.git'
-diffutils = 'httssh://git.savannah.gnu.org:/srv/git/diffutils.git'
+diffutils = 'https://git.savannah.gnu.org/git/diffutils.git'
 binutils = 'git://sourceware.org/git/binutils-gdb.git'
 
 
@@ -59,6 +59,7 @@ class DiffsTest(unittest.TestCase):
     elif name == 'binutils':
       target = binutils
 
+    pygit2.clone_repository(target, os.getcwd() + '/' + name)
     return diffanalyze.RepoManager(target, cache=False, print_mode='only-fn')
 
 
@@ -81,14 +82,14 @@ class DiffsTest(unittest.TestCase):
 
     repo_manager.cleanup()
 
-  # def test_findutils(self):
-  #   self.output_comparison('findutils')
+  def test_findutils(self):
+    self.output_comparison('findutils')
   
-  # def test_diffutils(self):
-  #   self.output_comparison('diffutils')
+  def test_diffutils(self):
+    self.output_comparison('diffutils')
   
-  def test_binutils(self):
-    self.output_comparison('binutils')
+  # def test_binutils(self):
+  #   self.output_comparison('binutils')
     
   def tearDown(self):
     if os.path.isdir('findutils'):
