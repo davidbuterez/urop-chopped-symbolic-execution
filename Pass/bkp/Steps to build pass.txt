@@ -1,3 +1,0 @@
-1. LLVM_DIR=/home/davidb/llvm-3.4/llvm-cmake/share/llvm/cmake/ cmake ..
-2. make -j3
-3. clang -Xclang -load -Xclang ../build/libSkeletonPass.* password.c

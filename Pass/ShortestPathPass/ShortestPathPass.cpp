@@ -1,17 +1,23 @@
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/CallGraphSCCPass.h"
 
 using namespace llvm;
 
 namespace {
-struct ShortestPathPass : public FunctionPass {
+struct ShortestPathPass : public CallGraphSCCPass {
   static char ID;
-  ShortestPathPass() : FunctionPass(ID) {}
+  ShortestPathPass() : CallGraphSCCPass(ID) {}
 
-  bool runOnFunction(Function &F) override {
-    errs() << "Hello: ";
-    errs().write_escaped(F.getName()) << '\n';
+  bool runOnSCC(CallGraphSCC &SCC) override {
+    errs() << "Size = " << SCC.size();
+
+    for (auto const &it = SCC.begin(); it != SCC.end(); it++) {
+      
+    }
+
     return false;
   }
 }; // end of struct Hello

@@ -1,0 +1,1 @@
+/bin/g++-5 -fPIC   -shared -Wl,-soname,ShortestPathPass.so -o ShortestPathPass.so CMakeFiles/ShortestPathPass.dir/ShortestPathPass.cpp.o -ldl -ltinfo -lpthread -lz 

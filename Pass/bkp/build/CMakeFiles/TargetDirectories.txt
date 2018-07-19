@@ -1,3 +1,0 @@
-/home/davidb/UROP/Pass/build/CMakeFiles/rebuild_cache.dir
-/home/davidb/UROP/Pass/build/CMakeFiles/ShortestPathPass.dir
-/home/davidb/UROP/Pass/build/CMakeFiles/edit_cache.dir

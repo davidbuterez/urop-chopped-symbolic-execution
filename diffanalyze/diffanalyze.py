@@ -193,8 +193,6 @@ class DiffSummary:
 
 class RepoManager:
 
-  cloned_repos_paths = []
-
   def __init__(self, repo_url, cache, print_mode):
     self.repo_url = repo_url
     self.cache = cache
@@ -202,6 +200,7 @@ class RepoManager:
     self.print_mode = print_mode
     self.fn_updated_per_commit = {}
     self.other_changed = {}
+    self.cloned_repos_paths = []
 
   def get_repo_paths(self):
     # Path where repo is supposed to be
@@ -235,7 +234,7 @@ class RepoManager:
 
   def get_repo(self, repo_path, repo_hash=''):
     # Keep track of paths of cloned repos
-    RepoManager.cloned_repos_paths.append(repo_path)
+    self.cloned_repos_paths.append(repo_path)
 
     # Do not look outside this path
     ceil_dir = dirname(abspath(repo_path))
@@ -280,20 +279,12 @@ class RepoManager:
           PrintManager.print('Changed to %s.' % (repo_hash,))
     
     PrintManager.print()
+    print('Cloned boss')
     return repo
-
-  def combine_dicts(self, update_dict):
-    for k, v in update_dict.items():
-      if k in self.other_changed:
-        self.other_changed[k].update(v)
-      else:
-        self.other_changed[k] = v
 
   def compute_diffs(self, diff, patch_hash=''):
     diff_summary = DiffSummary()
     patches = list(diff.__iter__())
-
-    update_others = {}
 
     updated_fn_count = 0
     has_c_files = False
@@ -304,10 +295,10 @@ class RepoManager:
 
       extension = FileDifferences.get_extension(filename)
       if extension not in self.allowed_extensions:
-        if extension not in update_others:
-          update_others[extension] = set()
+        if extension not in self.other_changed:
+          self.other_changed[extension] = set()
         
-        update_others[extension].add(patch_hash)
+        self.other_changed[extension].add(patch_hash)
         continue
 
       has_c_files = True
@@ -332,12 +323,9 @@ class RepoManager:
 
     if has_c_files and not has_updated_fn:
       c_ext = '.c'
-      if c_ext not in update_others:
-       update_others[c_ext] = set()
-      update_others[c_ext].add(patch_hash)
-
-    if update_others:
-      self.combine_dicts(update_others)
+      if c_ext not in self.other_changed:
+       self.other_changed[c_ext] = set()
+      self.other_changed[c_ext].add(patch_hash)
 
     return diff_summary
 
@@ -370,7 +358,7 @@ class RepoManager:
   def repo_to_commit(repo, commit_hash):
     repo.reset(pygit2.Oid(hex=commit_hash), pygit2.GIT_RESET_HARD)
 
-  def get_updated_fn_per_commit(self, skip_initial=False):
+  def get_updated_fn_per_commit(self, skip_initial=False, testing=False):
     RepoManager.initial_cleanup()
 
     curr_repo_path, prev_repo_path = self.get_repo_paths()
@@ -378,10 +366,18 @@ class RepoManager:
     patch_repo = self.get_repo(curr_repo_path)
     original_repo = self.get_repo(prev_repo_path)
 
-    for commit in patch_repo.walk(patch_repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL):
+    empty_tree = None
+
+    commit_count = 0
+
+    commits = list(patch_repo.walk(patch_repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL))
+    for commit in commits:
       patch_hash, original_hash = commit.hex, commit.parents[0].hex if commit.parents else None
 
-      empty_tree = original_repo.revparse_single(GIT_EMPTY_TREE_ID)
+      commit_count += 1
+
+      if not original_hash:
+        empty_tree = original_repo.revparse_single(GIT_EMPTY_TREE_ID)
 
       RepoManager.repo_to_commit(patch_repo, patch_hash)
       if original_hash:
@@ -400,6 +396,9 @@ class RepoManager:
         self.fn_updated_per_commit[updated_fn].append(patch_hash)
       else:
         self.fn_updated_per_commit[updated_fn] = [patch_hash]
+
+      if testing:
+        print ('Seen %s commits out of %s' % (commit_count, len(commits)))
 
   def order_results(self, other=False):
     target = None
@@ -492,7 +491,7 @@ class RepoManager:
 
   def cleanup(self):
     if not self.cache:
-      for path in RepoManager.cloned_repos_paths:
+      for path in self.cloned_repos_paths:
         shutil.rmtree(path)
 
 ##### Main program #####

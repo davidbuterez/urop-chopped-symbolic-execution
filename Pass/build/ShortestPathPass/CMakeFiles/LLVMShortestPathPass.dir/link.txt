@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC -Wall -std=c++11 -fno-rtti  -shared -Wl,-soname,LLVMShortestPathPass.so -o LLVMShortestPathPass.so CMakeFiles/LLVMShortestPathPass.dir/ShortestPathPass.o -ldl -ltinfo -lpthread -lz 

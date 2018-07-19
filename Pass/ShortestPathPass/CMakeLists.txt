@@ -1,5 +1,3 @@
-add_llvm_loadable_module(LLVMShortestPathPass
+add_llvm_loadable_module(ShortestPathPass
   ShortestPathPass.cpp
   )
-
-SET(CMAKE_CXX_FLAGS "-Wall -std=c++11 -fno-rtti")
