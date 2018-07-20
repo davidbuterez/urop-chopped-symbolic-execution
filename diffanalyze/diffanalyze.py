@@ -431,17 +431,22 @@ class RepoManager:
     path = 'img/skip/' if skip else 'img/'
     plt.savefig(path + 'function_commits.pdf', bbox_inches='tight')
 
-  def plot_fn_per_commit_restricted(self, skip):
+  def plot_fn_per_commit_restricted(self, skip, limit):
     ordered_dict = self.order_results()
     plt.figure(2)
 
-    keys = [k for k in ordered_dict.keys() if k > 0 and k <= 25]
+    if not limit or limit <= 0:
+      limit = 25
+    elif limit > len(ordered_dict.keys()):
+      limit = len(ordered_dict.keys() - 1)
+
+    keys = [k for k in ordered_dict.keys() if k > 0 and k <= limit]
     values = [v for k, v in ordered_dict.items() if k in keys]
 
     plot = plt.bar(keys, values, width=0.8, color='g')
     plt.xlabel('Functions changed')
     plt.ylabel('Commits')
-
+    
     RepoManager.check_dirs()
     path = 'img/skip/' if skip else 'img/'
     plt.savefig(path + 'function_commits_restricted.pdf', bbox_inches='tight')
@@ -507,6 +512,7 @@ def main(main_args):
   parser.add_argument('-s', '--summary', action='store_true', help='prints a summary of the data')
   parser.add_argument('-p', '--plot', action='store_true', help='save graphs of the generated data')
   parser.add_argument('-i', '--skip-initial', dest='skip', action='store_true', help='skip initial commit - can be very large')
+  parser.add_argument('-limit', type=int, help='plot commits up to this one')
 
   # Dictionary of arguments
   args_orig = parser.parse_args(main_args)
@@ -530,7 +536,7 @@ def main(main_args):
     manager.window.showMaximized()
 
     repo_manager.plot_fn_per_commit(args['skip'])
-    repo_manager.plot_fn_per_commit_restricted(args['skip'])
+    repo_manager.plot_fn_per_commit_restricted(args['skip'], args['limit'])
     repo_manager.plot_other_changed(args['skip'])
 
   repo_manager.cleanup()
