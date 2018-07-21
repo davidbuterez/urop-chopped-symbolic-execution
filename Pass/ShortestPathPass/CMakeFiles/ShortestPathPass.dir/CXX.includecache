@@ -6,6 +6,20 @@
 
 #IncludeRegexTransform: 
 
+/home/davidb/UROP/Pass/ShortestPathPass/GraphManager.cpp
+iostream
+-
+llvm/IR/Function.h
+/home/davidb/UROP/Pass/ShortestPathPass/llvm/IR/Function.h
+GraphManager.h
+/home/davidb/UROP/Pass/ShortestPathPass/GraphManager.h
+
+/home/davidb/UROP/Pass/ShortestPathPass/GraphManager.h
+llvm/Analysis/CallGraph.h
+/home/davidb/UROP/Pass/ShortestPathPass/llvm/Analysis/CallGraph.h
+llvm/Analysis/CallGraphSCCPass.h
+/home/davidb/UROP/Pass/ShortestPathPass/llvm/Analysis/CallGraphSCCPass.h
+
 /home/davidb/UROP/Pass/ShortestPathPass/ShortestPathPass.cpp
 llvm/Pass.h
 /home/davidb/UROP/Pass/ShortestPathPass/llvm/Pass.h
@@ -13,4 +27,10 @@ llvm/IR/Function.h
 /home/davidb/UROP/Pass/ShortestPathPass/llvm/IR/Function.h
 llvm/Support/raw_ostream.h
 /home/davidb/UROP/Pass/ShortestPathPass/llvm/Support/raw_ostream.h
+llvm/Analysis/CallGraph.h
+/home/davidb/UROP/Pass/ShortestPathPass/llvm/Analysis/CallGraph.h
+llvm/Analysis/CallGraphSCCPass.h
+/home/davidb/UROP/Pass/ShortestPathPass/llvm/Analysis/CallGraphSCCPass.h
+GraphManager.h
+/home/davidb/UROP/Pass/ShortestPathPass/GraphManager.h
 

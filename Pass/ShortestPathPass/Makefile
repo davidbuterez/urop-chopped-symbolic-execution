@@ -171,6 +171,33 @@ ShortestPathPass/fast:
 	cd /home/davidb/UROP/Pass && $(MAKE) -f ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build.make ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build
 .PHONY : ShortestPathPass/fast
 
+GraphManager.o: GraphManager.cpp.o
+
+.PHONY : GraphManager.o
+
+# target to build an object file
+GraphManager.cpp.o:
+	cd /home/davidb/UROP/Pass && $(MAKE) -f ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build.make ShortestPathPass/CMakeFiles/ShortestPathPass.dir/GraphManager.cpp.o
+.PHONY : GraphManager.cpp.o
+
+GraphManager.i: GraphManager.cpp.i
+
+.PHONY : GraphManager.i
+
+# target to preprocess a source file
+GraphManager.cpp.i:
+	cd /home/davidb/UROP/Pass && $(MAKE) -f ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build.make ShortestPathPass/CMakeFiles/ShortestPathPass.dir/GraphManager.cpp.i
+.PHONY : GraphManager.cpp.i
+
+GraphManager.s: GraphManager.cpp.s
+
+.PHONY : GraphManager.s
+
+# target to generate assembly for a file
+GraphManager.cpp.s:
+	cd /home/davidb/UROP/Pass && $(MAKE) -f ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build.make ShortestPathPass/CMakeFiles/ShortestPathPass.dir/GraphManager.cpp.s
+.PHONY : GraphManager.cpp.s
+
 ShortestPathPass.o: ShortestPathPass.cpp.o
 
 .PHONY : ShortestPathPass.o
@@ -211,6 +238,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... list_install_components"
 	@echo "... install/local"
+	@echo "... GraphManager.o"
+	@echo "... GraphManager.i"
+	@echo "... GraphManager.s"
 	@echo "... ShortestPathPass.o"
 	@echo "... ShortestPathPass.i"
 	@echo "... ShortestPathPass.s"

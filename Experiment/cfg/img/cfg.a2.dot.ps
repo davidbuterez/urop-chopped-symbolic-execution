@@ -1,6 +1,6 @@
 %!PS-Adobe-3.0
 %%Creator: graphviz version 2.40.1 (20161225.0304)
-%%Title: CFG for 'get_length' function
+%%Title: CFG for 'a2' function
 %%Pages: (atend)
 %%BoundingBox: (atend)
 %%EndComments
@@ -178,45 +178,45 @@ def
 %%EndSetup
 setupLatin1
 %%Page: 1 1
-%%PageBoundingBox: 36 36 332 181
+%%PageBoundingBox: 36 36 574 181
 %%PageOrientation: Portrait
 0 0 1 beginpage
 gsave
-36 36 296 145 boxprim clip newpath
+36 36 538 145 boxprim clip newpath
 1 1 set_scale 0 rotate 40 40 translate
 0 0 0 graphcolor
 14 /Times-Roman set_font
-39 7.8 moveto 210 (CFG for 'get_length' function) alignedtext
-% Node0x44ea650
+189.5 7.8 moveto 151 (CFG for 'a2' function) alignedtext
+% Node0x44e8ac0
 gsave
 1 setlinewidth
 0 0 0 nodecolor
 newpath 0 23.5 moveto
 0 136.5 lineto
-288 136.5 lineto
-288 23.5 lineto
+530 136.5 lineto
+530 23.5 lineto
 closepath stroke
 0 0 0 nodecolor
 14 /Times-Roman set_font
 8 121.3 moveto 43 (entry:) alignedtext
 0 0 0 nodecolor
 14 /Times-Roman set_font
-8 106.3 moveto 221 ( %str.addr = alloca i8*, align 8) alignedtext
+8 106.3 moveto 211 ( %y.addr = alloca i32, align 4) alignedtext
 0 0 0 nodecolor
 14 /Times-Roman set_font
-8 91.3 moveto 272 ( store i8* %str, i8** %str.addr, align 8) alignedtext
+8 91.3 moveto 251 ( store i32 %y, i32* %y.addr, align 4) alignedtext
 0 0 0 nodecolor
 14 /Times-Roman set_font
-8 76.3 moveto 242 ( %0 = load i8** %str.addr, align 8) alignedtext
+8 76.3 moveto 514 ( %call = call i32 \(i8*, ...\)* @printf\(i8* getelementptr inbounds \([3 x i8]*) alignedtext
 0 0 0 nodecolor
 14 /Times-Roman set_font
-8 61.3 moveto 262 ( %call = call i64 @strlen\(i8* %0\) #4) alignedtext
+8 61.3 moveto 167 (... @.str2, i32 0, i32 0\)\)) alignedtext
 0 0 0 nodecolor
 14 /Times-Roman set_font
-8 46.3 moveto 229 ( %conv = trunc i64 %call to i32) alignedtext
+8 46.3 moveto 148 ( call void @a1\(i32 0\)) alignedtext
 0 0 0 nodecolor
 14 /Times-Roman set_font
-8 31.3 moveto 105 ( ret i32 %conv) alignedtext
+8 31.3 moveto 61 ( ret void) alignedtext
 grestore
 endpage
 showpage
@@ -225,7 +225,7 @@ grestore
 %%EndPage: 1
 %%Trailer
 %%Pages: 1
-%%BoundingBox: 36 36 332 181
+%%BoundingBox: 36 36 574 181
 end
 restore
 %%EOF

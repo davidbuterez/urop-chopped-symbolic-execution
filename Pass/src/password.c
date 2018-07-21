@@ -1,12 +1,25 @@
 #include <stdio.h>
 #include <string.h>
 
+void a1(int);
+void a2(int);
+
 int get_length(const char *str) {
   return strlen(str);
 }
 
 void append_string(char *str) {
   strcat(str, "newlyappended");
+}
+
+void a1(int x) {
+  printf("Yes");
+  a2(0);
+}
+
+void a2(int y) {
+  printf("No");
+  a1(0);
 }
 
 int check_password(char *buf) {

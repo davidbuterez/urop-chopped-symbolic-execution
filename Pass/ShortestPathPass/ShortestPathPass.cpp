@@ -3,6 +3,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/CallGraphSCCPass.h"
+#include "GraphManager.h"
 
 using namespace llvm;
 
@@ -12,11 +13,14 @@ struct ShortestPathPass : public CallGraphSCCPass {
   ShortestPathPass() : CallGraphSCCPass(ID) {}
 
   bool runOnSCC(CallGraphSCC &SCC) override {
-    errs() << "Size = " << SCC.size();
+    // errs() << "Current SCC:" << &SCC << '\n';
 
-    for (std::vector<CallGraphNode*>::const_iterator it = SCC.begin(); it != SCC.end(); it++) {
-      
-    }
+    // for (CallGraphSCC::iterator it = SCC.begin(); it != SCC.end(); it++) {
+    //   CallGraphNode *const node = *it;
+    //   node->dump();
+    // }
+
+    GraphManager graphManager {SCC};
 
     return false;
   }

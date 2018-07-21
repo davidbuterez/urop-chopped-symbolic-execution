@@ -1,5 +1,6 @@
 file(REMOVE_RECURSE
   "CMakeFiles/ShortestPathPass.dir/ShortestPathPass.cpp.o"
+  "CMakeFiles/ShortestPathPass.dir/GraphManager.cpp.o"
   "ShortestPathPass.pdb"
   "ShortestPathPass.so"
 )

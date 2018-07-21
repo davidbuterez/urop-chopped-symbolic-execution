@@ -3,7 +3,9 @@ target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f3
 target triple = "x86_64-unknown-linux-gnu"
 
 @.str = private unnamed_addr constant [14 x i8] c"newlyappended\00", align 1
-@.str1 = private unnamed_addr constant [17 x i8] c"Password found!\0A\00", align 1
+@.str1 = private unnamed_addr constant [4 x i8] c"Yes\00", align 1
+@.str2 = private unnamed_addr constant [3 x i8] c"No\00", align 1
+@.str3 = private unnamed_addr constant [17 x i8] c"Password found!\0A\00", align 1
 
 ; Function Attrs: nounwind uwtable
 define i32 @get_length(i8* %str) #0 {
@@ -31,6 +33,28 @@ entry:
 
 ; Function Attrs: nounwind
 declare i8* @strcat(i8*, i8*) #2
+
+; Function Attrs: nounwind uwtable
+define void @a1(i32 %x) #0 {
+entry:
+  %x.addr = alloca i32, align 4
+  store i32 %x, i32* %x.addr, align 4
+  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str1, i32 0, i32 0))
+  call void @a2(i32 0)
+  ret void
+}
+
+declare i32 @printf(i8*, ...) #3
+
+; Function Attrs: nounwind uwtable
+define void @a2(i32 %y) #0 {
+entry:
+  %y.addr = alloca i32, align 4
+  store i32 %y, i32* %y.addr, align 4
+  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]* @.str2, i32 0, i32 0))
+  call void @a1(i32 0)
+  ret void
+}
 
 ; Function Attrs: nounwind uwtable
 define i32 @check_password(i8* %buf) #0 {
@@ -128,7 +152,7 @@ if.end:                                           ; preds = %entry
   br i1 %tobool, label %if.then3, label %if.end5
 
 if.then3:                                         ; preds = %if.end
-  %call4 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([17 x i8]* @.str1, i32 0, i32 0))
+  %call4 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([17 x i8]* @.str3, i32 0, i32 0))
   store i32 0, i32* %retval
   br label %return
 
@@ -140,8 +164,6 @@ return:                                           ; preds = %if.end5, %if.then3,
   %5 = load i32* %retval
   ret i32 %5
 }
-
-declare i32 @printf(i8*, ...) #3
 
 attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readonly "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }

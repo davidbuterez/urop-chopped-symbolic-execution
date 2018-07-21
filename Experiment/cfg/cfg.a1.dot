@@ -1,0 +1,5 @@
+digraph "CFG for 'a1' function" {
+	label="CFG for 'a1' function";
+
+	Node0x44e84f0 [shape=record,label="{entry:\l  %x.addr = alloca i32, align 4\l  store i32 %x, i32* %x.addr, align 4\l  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]*\l... @.str1, i32 0, i32 0))\l  call void @a2(i32 0)\l  ret void\l}"];
+}
