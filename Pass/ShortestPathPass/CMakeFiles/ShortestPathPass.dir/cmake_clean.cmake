@@ -1,6 +1,7 @@
 file(REMOVE_RECURSE
   "CMakeFiles/ShortestPathPass.dir/ShortestPathPass.cpp.o"
   "CMakeFiles/ShortestPathPass.dir/GraphManager.cpp.o"
+  "CMakeFiles/ShortestPathPass.dir/ExtendedCGNode.cpp.o"
   "ShortestPathPass.pdb"
   "ShortestPathPass.so"
 )

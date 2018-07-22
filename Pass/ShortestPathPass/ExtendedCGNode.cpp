@@ -1,27 +1,14 @@
 #include "ExtendedCGNode.h"
 
-ExtendedCGNode::ExtendedCGNode(llvm::CallGraphNode *node, llvm::CallGraphNode *pred, unsigned distance) : 
+ExtendedCGNode::ExtendedCGNode(llvm::CallGraphNode *node, std::shared_ptr<ExtendedCGNode> pred, unsigned distance) : 
   node(node), pred{pred}, distance(distance) {}
 
-ExtendedCGNode::ExtendedCGNode() : ExtendedCGNode(nullptr, nullptr, std::numeric_limits<unsigned int>::max()) {}
-
-bool ExtendedCGNode::operator== (const ExtendedCGNode &other) const {
-  if (this->node->getFunction() && other.node->getFunction()) {
-    if (this->node->getFunction()->getName() == other.node->getFunction()->getName()) {
-      return true;
-    }
-  }
-  return false;
-}
-
-llvm::CallGraphNode* ExtendedCGNode::getNode() {
-  return node;
-}
-
-void ExtendedCGNode::setPredecessor(llvm::CallGraphNode *predecessor) {
-  pred = predecessor;
-}
+ExtendedCGNode::ExtendedCGNode() : ExtendedCGNode(nullptr, nullptr, 0) {}
 
 std::string ExtendedCGNode::getFnName() const {
-  return node->getFunction() ? node->getFunction()->getName() : "null";
+  if (!this->pred) {
+    return "main";
+  }
+
+  return this->node->getFunction() ? this->node->getFunction()->getName() : "null";
 }

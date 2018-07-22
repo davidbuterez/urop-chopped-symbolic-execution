@@ -171,6 +171,33 @@ ShortestPathPass/fast:
 	cd /home/davidb/UROP/Pass && $(MAKE) -f ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build.make ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build
 .PHONY : ShortestPathPass/fast
 
+ExtendedCGNode.o: ExtendedCGNode.cpp.o
+
+.PHONY : ExtendedCGNode.o
+
+# target to build an object file
+ExtendedCGNode.cpp.o:
+	cd /home/davidb/UROP/Pass && $(MAKE) -f ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build.make ShortestPathPass/CMakeFiles/ShortestPathPass.dir/ExtendedCGNode.cpp.o
+.PHONY : ExtendedCGNode.cpp.o
+
+ExtendedCGNode.i: ExtendedCGNode.cpp.i
+
+.PHONY : ExtendedCGNode.i
+
+# target to preprocess a source file
+ExtendedCGNode.cpp.i:
+	cd /home/davidb/UROP/Pass && $(MAKE) -f ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build.make ShortestPathPass/CMakeFiles/ShortestPathPass.dir/ExtendedCGNode.cpp.i
+.PHONY : ExtendedCGNode.cpp.i
+
+ExtendedCGNode.s: ExtendedCGNode.cpp.s
+
+.PHONY : ExtendedCGNode.s
+
+# target to generate assembly for a file
+ExtendedCGNode.cpp.s:
+	cd /home/davidb/UROP/Pass && $(MAKE) -f ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build.make ShortestPathPass/CMakeFiles/ShortestPathPass.dir/ExtendedCGNode.cpp.s
+.PHONY : ExtendedCGNode.cpp.s
+
 GraphManager.o: GraphManager.cpp.o
 
 .PHONY : GraphManager.o
@@ -238,6 +265,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... list_install_components"
 	@echo "... install/local"
+	@echo "... ExtendedCGNode.o"
+	@echo "... ExtendedCGNode.i"
+	@echo "... ExtendedCGNode.s"
 	@echo "... GraphManager.o"
 	@echo "... GraphManager.i"
 	@echo "... GraphManager.s"

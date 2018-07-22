@@ -7,11 +7,13 @@
 
 class GraphManager {
   public:
-    GraphManager(llvm::CallGraphSCC &SCC);
-    std::vector<std::string> computeShortestPath(std::string targetFunction);
+    GraphManager(llvm::CallGraph &CG);
+    std::shared_ptr<ExtendedCGNode> findTargetNode(std::string targetFunction);
+    std::vector<std::string> getShortestPath(std::shared_ptr<ExtendedCGNode> target);
+    void printPath(std::vector<std::string>& path);
   private:
-    llvm::CallGraphSCC &scc;
-    ExtendedCGNode root;
+    llvm::CallGraph &cg;
+    std::shared_ptr<ExtendedCGNode> root;
     // std::vector<ExtendedCGNode> visited;
 };
 
