@@ -1,6 +1,5 @@
 #include <iostream>
 #include <queue>
-#include <unordered_set>
 #include "llvm/IR/Function.h"
 #include "GraphManager.h"
 
@@ -14,12 +13,16 @@ std::shared_ptr<ExtendedCGNode> GraphManager::findTargetNode(std::string targetF
   std::unordered_set<std::shared_ptr<ExtendedCGNode>, ExtendedNodeHasher, ExtendedNodeEq> visited;
   std::queue<std::shared_ptr<ExtendedCGNode>> nodeQueue;
 
+  std::shared_ptr<ExtendedCGNode> target;
+
   // Initial set-up for the root node
   nodeQueue.push(root);
 
   while (!nodeQueue.empty()) {
     auto current = nodeQueue.front();
     nodeQueue.pop();
+
+    allFunctions.insert(current->getFnName());
 
     // If node containing target function is in queue, we can get the path through it's predecessors.
     if (current->getFnName() == targetFunction) {
