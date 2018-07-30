@@ -97,11 +97,7 @@ void GraphManager::printSkip() {
       continue;
     }
     
-    if (skippableFunctions.back() == fnName) {
-      std::cout << fnName;
-    } else {
-      std::cout << fnName << ",";
-    }
+    std::cout << fnName << "\n";
   }
 }
 
