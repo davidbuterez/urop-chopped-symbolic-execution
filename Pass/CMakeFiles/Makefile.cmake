@@ -12,6 +12,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "CMakeFiles/3.11.4/CMakeSystem.cmake"
   "CMakeLists.txt"
   "ShortestPathPass/CMakeLists.txt"
+  "SkipFunctionsPass/CMakeLists.txt"
   "/home/davidb/llvm-3.4/llvm-cmake/share/llvm/cmake/LLVMConfig.cmake"
   "/home/davidb/llvm-3.4/llvm-cmake/share/llvm/cmake/LLVMConfigVersion.cmake"
   "/home/davidb/llvm-3.4/llvm/cmake/modules/AddLLVM.cmake"
@@ -48,9 +49,11 @@ set(CMAKE_MAKEFILE_OUTPUTS
 set(CMAKE_MAKEFILE_PRODUCTS
   "CMakeFiles/CMakeDirectoryInformation.cmake"
   "ShortestPathPass/CMakeFiles/CMakeDirectoryInformation.cmake"
+  "SkipFunctionsPass/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
   "ShortestPathPass/CMakeFiles/ShortestPathPass.dir/DependInfo.cmake"
+  "SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/DependInfo.cmake"
   )

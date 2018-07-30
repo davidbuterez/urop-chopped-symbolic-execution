@@ -169,6 +169,19 @@ ShortestPathPass/fast:
 	$(MAKE) -f ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build.make ShortestPathPass/CMakeFiles/ShortestPathPass.dir/build
 .PHONY : ShortestPathPass/fast
 
+#=============================================================================
+# Target rules for targets named SkipFunctionsPass
+
+# Build rule for target.
+SkipFunctionsPass: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 SkipFunctionsPass
+.PHONY : SkipFunctionsPass
+
+# fast build rule for target.
+SkipFunctionsPass/fast:
+	$(MAKE) -f SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/build.make SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/build
+.PHONY : SkipFunctionsPass/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -182,6 +195,7 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... ShortestPathPass"
+	@echo "... SkipFunctionsPass"
 .PHONY : help
 
 

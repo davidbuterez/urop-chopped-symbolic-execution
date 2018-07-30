@@ -1,9 +1,9 @@
 #include "ExtendedCGNode.h"
 
-ExtendedCGNode::ExtendedCGNode(llvm::CallGraphNode *node, std::shared_ptr<ExtendedCGNode> pred, unsigned distance) : 
-  node(node), pred{pred}, distance(distance) {}
+ExtendedCGNode::ExtendedCGNode(llvm::CallGraphNode *node, std::shared_ptr<ExtendedCGNode> pred) : 
+  node(node), pred{pred} {}
 
-ExtendedCGNode::ExtendedCGNode() : ExtendedCGNode(nullptr, nullptr, 0) {}
+ExtendedCGNode::ExtendedCGNode() : ExtendedCGNode(nullptr, nullptr) {}
 
 std::string ExtendedCGNode::getFnName() const {
   if (!this->pred) {

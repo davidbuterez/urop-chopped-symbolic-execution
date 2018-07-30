@@ -2,18 +2,23 @@
 #include <queue>
 #include "llvm/IR/Function.h"
 #include "GraphManager.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/ValueSymbolTable.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/Function.h"
 
 GraphManager::GraphManager(llvm::CallGraph &CG) : cg(CG) {
-  root = std::make_shared<ExtendedCGNode> (CG.getRoot(), nullptr, 0);
+  root = std::make_shared<ExtendedCGNode> (CG.getRoot(), nullptr);
 }
 
-std::shared_ptr<ExtendedCGNode> GraphManager::findTargetNode(std::string targetFunction) {
+std::shared_ptr<ExtendedCGNode> GraphManager::findTargetNode(std::string targetFunction, std::vector<std::string> allFunctions) {
   std::vector<std::string> path;
 
   std::unordered_set<std::shared_ptr<ExtendedCGNode>, ExtendedNodeHasher, ExtendedNodeEq> visited;
   std::queue<std::shared_ptr<ExtendedCGNode>> nodeQueue;
 
-  std::shared_ptr<ExtendedCGNode> target;
+  std::shared_ptr<ExtendedCGNode> target = nullptr;
 
   // Initial set-up for the root node
   nodeQueue.push(root);
@@ -22,11 +27,16 @@ std::shared_ptr<ExtendedCGNode> GraphManager::findTargetNode(std::string targetF
     auto current = nodeQueue.front();
     nodeQueue.pop();
 
-    allFunctions.insert(current->getFnName());
+    std::string fnName = current->getFnName();
+
+    // allFunctions.insert(current->getFnName());
+    if (std::find(allFunctions.begin(), allFunctions.end(), fnName) != allFunctions.end()) {
+      skippableFunctions.push_back(fnName);
+    }
 
     // If node containing target function is in queue, we can get the path through it's predecessors.
-    if (current->getFnName() == targetFunction) {
-      return current;
+    if (fnName == targetFunction) {
+      target = current;
     }
 
     // If not visited, add to visited set and run the algorithm
@@ -38,20 +48,21 @@ std::shared_ptr<ExtendedCGNode> GraphManager::findTargetNode(std::string targetF
         llvm::CallGraphNode::CallRecord callRecord = *it;
         auto succ = callRecord.second;
 
-        auto extendedSucc = std::make_shared<ExtendedCGNode> (succ, current, current->distance + 1);
+        auto extendedSucc = std::make_shared<ExtendedCGNode> (succ, current);
         nodeQueue.push(extendedSucc);
       }
     }
   }
 
-  return nullptr;
+  return target;
 }
 
-std::vector<std::string> GraphManager::getShortestPath(std::shared_ptr<ExtendedCGNode> target) {
+void GraphManager::getShortestPath(std::shared_ptr<ExtendedCGNode> target) {
   std::vector<std::string> path;
 
   if (!target) {
-    return path;
+    shortestPath = path;
+    return;
   }
 
   auto current = target;
@@ -64,19 +75,65 @@ std::vector<std::string> GraphManager::getShortestPath(std::shared_ptr<ExtendedC
   // Also add main to path
   path.push_back(current->getFnName());
 
-  return path;
+  shortestPath = path;
 }
 
-void GraphManager::printPath(std::vector<std::string>& path) {
-  if (path.empty()) {
+void GraphManager::printPath() {
+  if (shortestPath.empty()) {
     std::cout << "Function unreachable from main!\n";
     return;
   }
 
   std::cout << "Shortest path: ";
-  for (auto rit = path.crbegin(); rit != path.crend(); rit++) {
+  for (auto rit = shortestPath.crbegin(); rit != shortestPath.crend(); rit++) {
     std::cout << *rit << " ";
   }
   std::cout << std::endl;
 }
+
+void GraphManager::printSkip() {
+  for (auto fnName : skippableFunctions) {
+    if (std::find(shortestPath.begin(), shortestPath.end(), fnName) != shortestPath.end() || fnName == "null") {
+      continue;
+    }
+    
+    if (skippableFunctions.back() == fnName) {
+      std::cout << fnName;
+    } else {
+      std::cout << fnName << ",";
+    }
+  }
+}
+
+// void GraphManager::printAllFunctions() {
+//   std::cout << "All functions: ";
+//   for (auto fnName : allFunctions) {
+//     std::cout << fnName << " ";
+//   }
+//   std::cout << '\n';
+// }
+
+// std::unordered_set<std::string> GraphManager::printSkip() {
+//   std::unordered_set<std::string> skip;
+//   // std::cout << "Functions to skip: ";
+//   for (const auto& fnName : allFunctions) {
+//     if (std::find(shortestPath.begin(), shortestPath.end(), fnName) == shortestPath.end()) {
+//       if (fnName != "null") {
+//         skip.insert(fnName);
+      
+//         std::cout << fnName << " ";
+//         // llvm::Value *val = cg.getModule().getValueSymbolTable().lookup(fnName);
+//         // llvm::outs() << "Name " << fnName << "; Type: ";
+//         // val->getType()->print(llvm::outs());
+//         // llvm::outs() << "\n";
+//         // llvm::Function *f = cg.getModule().getFunction(fnName);
+//         // if (!f) {
+//         //   std::cout << "Not good " << fnName << '\n';
+//         // }
+//       }
+//     }
+//   }
+//   // std::cout << '\n';
+//   return skip;
+// }
 

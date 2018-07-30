@@ -115,6 +115,61 @@ clean: ShortestPathPass/CMakeFiles/ShortestPathPass.dir/clean
 .PHONY : clean
 
 #=============================================================================
+# Directory level rules for directory SkipFunctionsPass
+
+# Convenience name for "all" pass in the directory.
+SkipFunctionsPass/all: SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/all
+
+.PHONY : SkipFunctionsPass/all
+
+# Convenience name for "clean" pass in the directory.
+SkipFunctionsPass/clean: SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/clean
+
+.PHONY : SkipFunctionsPass/clean
+
+# Convenience name for "preinstall" pass in the directory.
+SkipFunctionsPass/preinstall:
+
+.PHONY : SkipFunctionsPass/preinstall
+
+#=============================================================================
+# Target rules for target SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir
+
+# All Build rule for target.
+SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/all:
+	$(MAKE) -f SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/build.make SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/depend
+	$(MAKE) -f SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/build.make SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/davidb/UROP/Pass/CMakeFiles --progress-num=5,6 "Built target SkipFunctionsPass"
+.PHONY : SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/all
+
+# Include target in all.
+all: SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/all
+
+.PHONY : all
+
+# Build rule for subdir invocation for target.
+SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/davidb/UROP/Pass/CMakeFiles 2
+	$(MAKE) -f CMakeFiles/Makefile2 SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/davidb/UROP/Pass/CMakeFiles 0
+.PHONY : SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/rule
+
+# Convenience name for target.
+SkipFunctionsPass: SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/rule
+
+.PHONY : SkipFunctionsPass
+
+# clean rule for target.
+SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/clean:
+	$(MAKE) -f SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/build.make SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/clean
+.PHONY : SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/clean
+
+# clean rule for target.
+clean: SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir/clean
+
+.PHONY : clean
+
+#=============================================================================
 # Special targets to cleanup operation of make.
 
 # Special rule to run CMake to check the build system integrity.

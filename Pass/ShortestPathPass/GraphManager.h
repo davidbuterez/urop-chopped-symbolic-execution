@@ -9,13 +9,18 @@
 class GraphManager {
   public:
     GraphManager(llvm::CallGraph &CG);
-    std::shared_ptr<ExtendedCGNode> findTargetNode(std::string targetFunction);
-    std::vector<std::string> getShortestPath(std::shared_ptr<ExtendedCGNode> target);
-    void printPath(std::vector<std::string>& path);
+    std::shared_ptr<ExtendedCGNode> findTargetNode(std::string targetFunction, std::vector<std::string>);
+    void getShortestPath(std::shared_ptr<ExtendedCGNode> target);
+    void printPath();
+    void printSkip();
+    // void printAllFunctions();
+    // std::unordered_set<std::string> printSkip();
   private:
     llvm::CallGraph &cg;
     std::shared_ptr<ExtendedCGNode> root;
-    std::unordered_set<std::string> allFunctions;
+    std::vector<std::string> shortestPath;
+    std::vector<std::string> skippableFunctions;
+    // std::unordered_set<std::string> allFunctions;
 };
 
 #endif /* GRAPHMANAGER_H */

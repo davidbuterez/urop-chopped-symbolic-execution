@@ -1,0 +1,24 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/davidb/UROP/Pass/SkipFunctionsPass/SkipFunctionsPass.cpp
+iostream
+-
+llvm/Pass.h
+/home/davidb/UROP/Pass/SkipFunctionsPass/llvm/Pass.h
+llvm/IR/Module.h
+/home/davidb/UROP/Pass/SkipFunctionsPass/llvm/IR/Module.h
+llvm/IR/Function.h
+/home/davidb/UROP/Pass/SkipFunctionsPass/llvm/IR/Function.h
+llvm/PassManager.h
+/home/davidb/UROP/Pass/SkipFunctionsPass/llvm/PassManager.h
+llvm/Support/raw_ostream.h
+/home/davidb/UROP/Pass/SkipFunctionsPass/llvm/Support/raw_ostream.h
+llvm/Support/CommandLine.h
+/home/davidb/UROP/Pass/SkipFunctionsPass/llvm/Support/CommandLine.h
+

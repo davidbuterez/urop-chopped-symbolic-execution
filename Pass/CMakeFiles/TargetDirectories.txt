@@ -11,3 +11,10 @@
 /home/davidb/UROP/Pass/ShortestPathPass/CMakeFiles/rebuild_cache.dir
 /home/davidb/UROP/Pass/ShortestPathPass/CMakeFiles/list_install_components.dir
 /home/davidb/UROP/Pass/ShortestPathPass/CMakeFiles/install/local.dir
+/home/davidb/UROP/Pass/SkipFunctionsPass/CMakeFiles/install/strip.dir
+/home/davidb/UROP/Pass/SkipFunctionsPass/CMakeFiles/edit_cache.dir
+/home/davidb/UROP/Pass/SkipFunctionsPass/CMakeFiles/SkipFunctionsPass.dir
+/home/davidb/UROP/Pass/SkipFunctionsPass/CMakeFiles/rebuild_cache.dir
+/home/davidb/UROP/Pass/SkipFunctionsPass/CMakeFiles/list_install_components.dir
+/home/davidb/UROP/Pass/SkipFunctionsPass/CMakeFiles/install/local.dir
+/home/davidb/UROP/Pass/SkipFunctionsPass/CMakeFiles/install.dir

@@ -206,6 +206,9 @@ Project_SOURCE_DIR:STATIC=/home/davidb/UROP/Pass
 //Dependencies for the target
 ShortestPathPass_LIB_DEPENDS:STATIC=general;dl;general;tinfo;general;pthread;general;z;
 
+//Dependencies for the target
+SkipFunctionsPass_LIB_DEPENDS:STATIC=general;dl;general;tinfo;general;pthread;general;z;
+
 
 ########################
 # INTERNAL cache entries
@@ -309,7 +312,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=2
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=3
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP

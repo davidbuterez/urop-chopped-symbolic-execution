@@ -10,14 +10,13 @@ class ExtendedCGNode {
   public:
     ExtendedCGNode();
 
-    ExtendedCGNode(llvm::CallGraphNode *node, std::shared_ptr<ExtendedCGNode> pred, unsigned distance);
+    ExtendedCGNode(llvm::CallGraphNode *node, std::shared_ptr<ExtendedCGNode> pred);
       
     std::string getFnName() const;
 
   private:
     llvm::CallGraphNode *node;
     std::shared_ptr<ExtendedCGNode> pred;
-    unsigned distance;
 };
 
 struct ExtendedNodeHasher {
