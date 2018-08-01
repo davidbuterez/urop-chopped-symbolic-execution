@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 
 from matplotlib.ticker import MaxNLocator
 from os.path import dirname, abspath
+from io import StringIO
 from termcolor import colored
 
 GIT_EMPTY_TREE_ID = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
@@ -20,6 +21,9 @@ GIT_EMPTY_TREE_ID = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 class PrintManager:
 
   should_print = False
+  old_stdout = sys.stdout
+  output = StringIO()
+  sys.stdout = output
   
   @staticmethod
   def print(*args, **kwargs):
@@ -40,33 +44,41 @@ class PrintManager:
   def print_relevant_diff(diff_summary, print_mode):
     if print_mode == 'simple':
       PrintManager.print_diff_summary_simple(diff_summary)
-    else:
-      if diff_summary:
-        PrintManager.print('Displaying patch information:\n')
+      return
+    
+    PrintManager.print('Displaying patch information:\n')
 
-        if print_mode == 'only-fn':
-          PrintManager.print_diff_summary(diff_summary, pretty=False)
-        else:
-          PrintManager.print_diff_summary(diff_summary, pretty=True)
-        PrintManager.print()
-      else:
+    if print_mode == 'only-fn':
+      PrintManager.print_diff_summary(diff_summary, pretty=False)
+    else:
+      PrintManager.print_diff_summary(diff_summary, pretty=True)
+      if diff_summary.updated_fn_count == 0:
         PrintManager.print('No relevant changes detected.')
+    PrintManager.print()      
+  
+  @staticmethod
+  def print_all(only_fn):
+    strs = PrintManager.output.getvalue().strip().split('\n') if not only_fn else set(PrintManager.output.getvalue().strip().split('\n'))
+    sys.stdout = PrintManager.old_stdout
+    for str in strs:
+      print(str)
 
 class ChangedLinesManager:
 
-  def __init__(self, added_lines, removed_lines):
+  def __init__(self, added_lines, removed_lines, patch_commit):
     self.added_lines = added_lines
     self.removed_lines = removed_lines
+    self.patch_msg = 'Patch ' + patch_commit + ' has added lines'
 
   def print_added_lines(self):
     if self.added_lines:
-      print('Patch has added lines (new file indices): [', end='')
+      print(self.patch_msg + ' (new file indices): [', end='')
       print(*self.added_lines, end='')
       print(']')
 
   def print_removed_lines(self):
     if self.removed_lines:
-      print('Patch has removed lines (old file indices): [', end='')
+      print(self.patch_msg + ' (old file indices): [', end='')
       print(*self.removed_lines, end='')
       print(']')
 
@@ -85,12 +97,13 @@ class FnAttributes:
 
 class FileDifferences:
   
-  def __init__(self, filename):
+  def __init__(self, filename, patch):
     self.filename = filename
     self.file_extension = FileDifferences.get_extension(filename)
     self.current_fn_map = self.get_fn_names(prev=False)
     self.prev_fn_map = self.get_fn_names(prev=True)
     self.fn_to_changed_lines = {}
+    self.patch_commit = patch
 
   @staticmethod
   def get_extension(filename):
@@ -150,7 +163,7 @@ class FileDifferences:
         self.fn_to_changed_lines[fn_name].removed_lines.extend(removed)
         success = True
       elif added or removed:
-        self.fn_to_changed_lines[fn_name] = ChangedLinesManager(added, removed)
+        self.fn_to_changed_lines[fn_name] = ChangedLinesManager(added, removed, self.patch_commit)
         success = True
       
     return success
@@ -308,7 +321,7 @@ class RepoManager:
 
       has_c_files = True
 
-      diff_data = FileDifferences(filename)
+      diff_data = FileDifferences(filename, patch_hash)
 
       for hunk in patch.hunks:
         new_fn_lines = []
@@ -333,31 +346,22 @@ class RepoManager:
       self.other_changed[c_ext].add(patch_hash)
 
     return diff_summary
-
-  def compare_patch_to_prev(self, patch_rev):
-    curr_repo_path, prev_repo_path = self.get_repo_paths()
-
+  
+  def compare_patches_in_range(self, patch_rev, times):
+    curr_repo_path, _ = self.get_repo_paths()
     curr_repo = self.get_repo(curr_repo_path, patch_rev)
 
-    # Get diff between patch commit and previous commit
-    prev = curr_repo.revparse_single('HEAD~')
-    curr = curr_repo.revparse_single('HEAD')
+    for i in range(times):
+      head = 'HEAD~'
+      prev = curr_repo.revparse_single(head + str(i + 1))
+      curr = curr_repo.revparse_single(head + str(i))
+      
+      PrintManager.print("Comparing with previous commit: " + prev.hex)
+      PrintManager.print()
 
-    # Also get previous version of repo
-    prev_repo = self.get_repo(prev_repo_path, prev.hex)
-
-    PrintManager.print("Comparing with previous commit: " + prev.hex)
-    PrintManager.print()
-
-    diff = curr_repo.diff(prev, curr, context_lines=0)
-
-    # Write diff file
-    diff_file = open('diffs', 'w')
-    diff_file.write(diff.patch)
-    diff_file.close() 
-
-    diff_summary = self.compute_diffs(diff)
-    PrintManager.print_relevant_diff(diff_summary, self.print_mode) 
+      diff = curr_repo.diff(prev, curr, context_lines=0)
+      diff_summary = self.compute_diffs(diff, curr.hex)
+      PrintManager.print_relevant_diff(diff_summary, self.print_mode) 
 
   @staticmethod
   def repo_to_commit(repo, commit_hash):
@@ -518,7 +522,8 @@ def main(main_args):
   parser.add_argument('-s', '--summary', action='store_true', help='prints a summary of the data')
   parser.add_argument('-p', '--plot', action='store_true', help='save graphs of the generated data')
   parser.add_argument('-i', '--skip-initial', dest='skip', action='store_true', help='skip initial commit - can be very large')
-  parser.add_argument('-limit', type=int, help='plot commits up to this one')
+  parser.add_argument('-l', '--limit', type=int, help='plot commits up to this one')
+  parser.add_argument('-r', '--range', type=int, metavar='N', help='look at patches for the previous N commits (preceding HASH)')
 
   # Dictionary of arguments
   args_orig = parser.parse_args(main_args)
@@ -529,8 +534,10 @@ def main(main_args):
 
   repo_manager = RepoManager(args['gitrepo'], bool(args['cache']), args['print'])
    
-  if args['hash']:
-    repo_manager.compare_patch_to_prev(args['hash'])
+  if args['hash'] and not args['range']:
+    repo_manager.compare_patches_in_range(args['hash'], times=1)
+  elif args['hash'] and args['range']:
+    repo_manager.compare_patches_in_range(args['hash'], times=int(args['range']))
   elif args['plot'] or args['summary']:
     repo_manager.get_updated_fn_per_commit(args['skip'])
 
@@ -545,6 +552,7 @@ def main(main_args):
     repo_manager.plot_fn_per_commit_restricted(args['skip'], args['limit'])
     repo_manager.plot_other_changed(args['skip'])
 
+  PrintManager.print_all(args['print'] == 'only-fn')
   repo_manager.cleanup()
 
 if __name__ == '__main__':

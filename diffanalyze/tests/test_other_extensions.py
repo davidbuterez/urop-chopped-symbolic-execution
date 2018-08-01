@@ -85,8 +85,8 @@ class DiffsTest(unittest.TestCase):
   def test_findutils(self):
     self.output_comparison('findutils')
   
-  def test_diffutils(self):
-    self.output_comparison('diffutils')
+  # def test_diffutils(self):
+    # self.output_comparison('diffutils')
   
   # def test_binutils(self):
   #   self.output_comparison('binutils')
