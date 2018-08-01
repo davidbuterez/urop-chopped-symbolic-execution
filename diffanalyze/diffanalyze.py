@@ -208,7 +208,7 @@ class RepoManager:
     return cwd + '/repo', cwd + '/repo_prev'
 
   # Handles the cloning of a repo
-  def clone_repo(self, repo_path, commit_hash=''):
+  def clone_repo(self, repo_path, rev=''):
     repo = None
 
     try:
@@ -226,13 +226,18 @@ class RepoManager:
       print(e)
       sys.exit(1)
 
-    if commit_hash:
-      hash_oid = pygit2.Oid(hex=commit_hash)
+    # if commit_hash:
+    #   hash_oid = pygit2.Oid(hex=commit_hash)
+    #   repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
+
+    if rev:
+      commit = repo.revparse_single(rev)
+      hash_oid = pygit2.Oid(hex=commit.hex)
       repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
 
     return repo
 
-  def get_repo(self, repo_path, repo_hash=''):
+  def get_repo(self, repo_path, rev=''):
     # Keep track of paths of cloned repos
     self.cloned_repos_paths.append(repo_path)
 
@@ -246,10 +251,10 @@ class RepoManager:
 
     if discover_repo_path is None:
       PrintManager.print("No repo found. Cloning...")
-      repo = self.clone_repo(repo_path, repo_hash)
+      repo = self.clone_repo(repo_path, rev)
       PrintManager.print("Cloned repo.")
-      current_hash = repo.revparse_single('HEAD')
-      PrintManager.print('Current commit (patch): ' + current_hash.hex)
+      current_commit = repo.revparse_single('HEAD')
+      PrintManager.print('Current commit (patch): ' + current_commit.hex)
 
     else:
       repo = pygit2.Repository(discover_repo_path)
@@ -261,22 +266,23 @@ class RepoManager:
         shutil.rmtree(repo_path)
 
         # Clone
-        repo = self.clone_repo(repo_path, repo_hash)
+        repo = self.clone_repo(repo_path, rev)
 
         PrintManager.print("Cloned repo.")
-        current_hash = repo.revparse_single('HEAD')
-        PrintManager.print('Current commit (patch): ' + current_hash.hex)
+        current_commit = repo.revparse_single('HEAD')
+        PrintManager.print('Current commit (patch): ' + current_commit.hex)
       else:
         PrintManager.print('Found required repo.')
         
         # Check that commits match
-        current_hash = repo.revparse_single('HEAD')
-        PrintManager.print('Current commit (patch): ' + current_hash.hex)
-        if repo_hash and current_hash.hex != repo_hash:
+        current_commit = repo.revparse_single('HEAD')
+        target_commit = repo.revparse_single(rev)
+        PrintManager.print('Current commit (patch): ' + current_commit.hex)
+        if target_commit.hex and current_commit.hex != target_commit.hex:
           PrintManager.print('Changing to desired commit...')
-          hash_oid = pygit2.Oid(hex=repo_hash)
+          hash_oid = pygit2.Oid(hex=target_commit.hex)
           repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
-          PrintManager.print('Changed to %s.' % (repo_hash,))
+          PrintManager.print('Changed to %s.' % (target_commit.hex,))
     
     PrintManager.print()
     return repo
@@ -328,10 +334,10 @@ class RepoManager:
 
     return diff_summary
 
-  def compare_patch_to_prev(self, patch_hash):
+  def compare_patch_to_prev(self, patch_rev):
     curr_repo_path, prev_repo_path = self.get_repo_paths()
 
-    curr_repo = self.get_repo(curr_repo_path, patch_hash)
+    curr_repo = self.get_repo(curr_repo_path, patch_rev)
 
     # Get diff between patch commit and previous commit
     prev = curr_repo.revparse_single('HEAD~')
