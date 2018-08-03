@@ -58,7 +58,7 @@ std::shared_ptr<ExtendedCGNode> GraphManager::findTargetNode(std::string targetF
 }
 
 void GraphManager::getShortestPath(std::shared_ptr<ExtendedCGNode> target) {
-  std::vector<std::string> path;
+  std::vector<std::shared_ptr<ExtendedCGNode>> path;
 
   if (!target) {
     shortestPath = path;
@@ -68,12 +68,12 @@ void GraphManager::getShortestPath(std::shared_ptr<ExtendedCGNode> target) {
   auto current = target;
 
   while (current->pred != nullptr) {
-    path.push_back(current->getFnName());
+    path.push_back(current);
     current = current->pred;
   }
 
   // Also add main to path
-  path.push_back(current->getFnName());
+  path.push_back(current);
 
   shortestPath = path;
 }
@@ -86,20 +86,44 @@ void GraphManager::printPath() {
 
   std::cout << "Shortest path: ";
   for (auto rit = shortestPath.crbegin(); rit != shortestPath.crend(); rit++) {
-    std::cout << *rit << " ";
+    std::cout << (*rit)->getFnName() << " ";
   }
   std::cout << std::endl;
 }
 
-void GraphManager::printSkip() {
-  for (auto fnName : skippableFunctions) {
-    if (std::find(shortestPath.begin(), shortestPath.end(), fnName) != shortestPath.end() || fnName == "null") {
-      continue;
+void GraphManager::inspectPath() {
+  for (auto rit = shortestPath.crbegin(); rit != shortestPath.crend(); rit++) {
+    std::cout << "Function " << (*rit)->getFnName() << " calls: " << "\n";
+    std::unordered_set<std::string> calledFunctions;
+
+    for (auto calledFuncIt = (*rit)->node->begin(); calledFuncIt != (*rit)->node->end(); ++calledFuncIt) {
+      llvm::CallGraphNode* node = calledFuncIt->second;
+
+      if (node && node->getFunction()) {
+        // std::cout << node->getFunction()->getName().str() << ", ";
+        calledFunctions.insert(node->getFunction()->getName().str());
+      } 
     }
+
+    for (const auto& fnName : calledFunctions) {
+      std::cout << fnName << ", ";
+    }
+
+    calledFunctions.clear();
     
-    std::cout << fnName << "\n";
+    std::cout << "\n" << "\n";
   }
 }
+
+// void GraphManager::printSkip() {
+//   for (auto fnName : skippableFunctions) {
+//     if (std::find(shortestPath.begin(), shortestPath.end(), fnName) != shortestPath.end() || fnName == "null") {
+//       continue;
+//     }
+    
+//     std::cout << fnName << "\n";
+//   }
+// }
 
 // void GraphManager::printAllFunctions() {
 //   std::cout << "All functions: ";
