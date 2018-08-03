@@ -46,8 +46,6 @@ class PrintManager:
       PrintManager.print_diff_summary_simple(diff_summary)
       return
     
-    PrintManager.print('Displaying patch information:\n')
-
     if print_mode == 'only-fn':
       PrintManager.print_diff_summary(diff_summary, pretty=False)
     else:
@@ -58,10 +56,11 @@ class PrintManager:
   
   @staticmethod
   def print_all(only_fn):
-    strs = PrintManager.output.getvalue().strip().split('\n') if not only_fn else set(PrintManager.output.getvalue().strip().split('\n'))
+    strs = PrintManager.output.getvalue().strip().split('\n') if not only_fn else list(dict.fromkeys(PrintManager.output.getvalue().strip().split('\n')))
     sys.stdout = PrintManager.old_stdout
     for str in strs:
-      print(str)
+      if str and str != '\n':
+        print(str)
 
 class ChangedLinesManager:
 
@@ -214,6 +213,7 @@ class RepoManager:
     self.fn_updated_per_commit = {}
     self.other_changed = {}
     self.cloned_repos_paths = []
+    self.original_commit = None
 
   def get_repo_paths(self):
     # Path where repo is supposed to be
@@ -243,25 +243,21 @@ class RepoManager:
     #   hash_oid = pygit2.Oid(hex=commit_hash)
     #   repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
 
-    if rev:
-      commit = repo.revparse_single(rev)
-      hash_oid = pygit2.Oid(hex=commit.hex)
-      repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
-
     return repo
 
   def get_repo(self, repo_path, rev=''):
     # Keep track of paths of cloned repos
     self.cloned_repos_paths.append(repo_path)
 
-    # Do not look outside this path
-    ceil_dir = dirname(abspath(repo_path))
+    # # Do not look outside this path
+    # ceil_dir = dirname(abspath(repo_path))
 
     # Check if we have a repo
     discover_repo_path = pygit2.discover_repository(repo_path, 0, dirname(os.getcwd()))
 
     repo = None
 
+    # No repo found
     if discover_repo_path is None:
       PrintManager.print("No repo found. Cloning...")
       repo = self.clone_repo(repo_path, rev)
@@ -269,35 +265,49 @@ class RepoManager:
       current_commit = repo.revparse_single('HEAD')
       PrintManager.print('Current commit (patch): ' + current_commit.hex)
 
-    else:
-      repo = pygit2.Repository(discover_repo_path)
+      repo = pygit2.Repository(pygit2.discover_repository(repo_path, 0, dirname(os.getcwd())))
 
-      if repo.remotes['origin'].url != self.repo_url:
-        PrintManager.print("Found repo is incorrect. Cloning required repo...")
+      if rev:
+        PrintManager.print('Changing to desired commit...')
+        change = repo.revparse_single(rev).hex
+        hash_oid = pygit2.Oid(hex=change)
+        repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
+        PrintManager.print('Changed to %s.' % (change,))
 
-        # Remove existing contents
-        shutil.rmtree(repo_path)
+      return repo
 
-        # Clone
-        repo = self.clone_repo(repo_path, rev)
+    # if not repo:
+    repo = pygit2.Repository(discover_repo_path)
 
-        PrintManager.print("Cloned repo.")
-        current_commit = repo.revparse_single('HEAD')
-        PrintManager.print('Current commit (patch): ' + current_commit.hex)
-      else:
-        PrintManager.print('Found required repo.')
-        
-        # Check that commits match
-        current_commit = repo.revparse_single('HEAD')
-        target_commit = repo.revparse_single(rev)
-        PrintManager.print('Current commit (patch): ' + current_commit.hex)
-        if target_commit.hex and current_commit.hex != target_commit.hex:
-          PrintManager.print('Changing to desired commit...')
-          hash_oid = pygit2.Oid(hex=target_commit.hex)
-          repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
-          PrintManager.print('Changed to %s.' % (target_commit.hex,))
+    # A different repo is found
+    if repo.remotes['origin'].url != self.repo_url:
+      PrintManager.print("Found repo is incorrect. Cloning required repo...")
+
+      # Remove existing contents
+      shutil.rmtree(repo_path)
+
+      # Clone
+      repo = self.clone_repo(repo_path, rev)
+
+      PrintManager.print("Cloned repo.")
+      current_commit = repo.revparse_single('HEAD')
+      PrintManager.print('Current commit (patch): ' + current_commit.hex)
     
-    PrintManager.print()
+    else:
+      # Found repo is correct, but HEAD may not be pointing to desired commit
+      PrintManager.print('Found required repo.')
+      PrintManager.print('Current commit (patch): ' + repo.revparse_single('HEAD').hex)
+      
+      # Check that commits match
+      current_commit = repo.revparse_single('HEAD')
+      target_commit = repo.revparse_single(rev)
+      
+      if target_commit and current_commit.hex != target_commit.hex:
+        PrintManager.print('Changing to desired commit...')
+        hash_oid = pygit2.Oid(hex=target_commit.hex)
+        repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
+        PrintManager.print('Changed to %s.' % (target_commit.hex,))
+      
     return repo
 
   def compute_diffs(self, diff, patch_hash=''):
@@ -356,12 +366,18 @@ class RepoManager:
       prev = curr_repo.revparse_single(head + str(i + 1))
       curr = curr_repo.revparse_single(head + str(i))
       
-      PrintManager.print("Comparing with previous commit: " + prev.hex)
-      PrintManager.print()
+      # PrintManager.print("Comparing with previous commit: " + prev.hex)
+      # PrintManager.print()
 
       diff = curr_repo.diff(prev, curr, context_lines=0)
       diff_summary = self.compute_diffs(diff, curr.hex)
       PrintManager.print_relevant_diff(diff_summary, self.print_mode) 
+
+    # Restore repo to original state
+    master = curr_repo.branches['master']
+    hash_oid = pygit2.Oid(hex=master.upstream.target.hex)
+    curr_repo.reset(hash_oid, pygit2.GIT_RESET_HARD)
+    PrintManager.print('Restored to %s' % (curr_repo.revparse_single('HEAD').hex,))
 
   @staticmethod
   def repo_to_commit(repo, commit_hash):
@@ -518,7 +534,7 @@ def main(main_args):
   parser.add_argument('--print-mode', dest='print', choices=['full', 'simple', 'only-fn'], default='full', help='print format')
   # parser.add_argument('-f', '--only-function-names', dest='fn_names', action='store_true', help='display only a list of function names')
   parser.add_argument('-c', '--cache', action='store_true', help='do not delete cloned repos after finishing')
-  # parser.add_argument('--verbose', action='store_true', help='display helpful progress messages')
+  parser.add_argument('--verbose', action='store_true', help='display helpful progress messages')
   parser.add_argument('-s', '--summary', action='store_true', help='prints a summary of the data')
   parser.add_argument('-p', '--plot', action='store_true', help='save graphs of the generated data')
   parser.add_argument('-i', '--skip-initial', dest='skip', action='store_true', help='skip initial commit - can be very large')
@@ -530,7 +546,7 @@ def main(main_args):
   args = vars(args_orig)
 
   # Handle printing
-  # PrintManager.should_print = bool(args['verbose'])
+  PrintManager.should_print = bool(args['verbose'])
 
   repo_manager = RepoManager(args['gitrepo'], bool(args['cache']), args['print'])
    
