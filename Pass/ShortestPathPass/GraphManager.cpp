@@ -92,8 +92,10 @@ void GraphManager::printPath() {
 }
 
 void GraphManager::inspectPath() {
+  std::vector<std::string> allCalledFunctions;
+
   for (auto rit = shortestPath.crbegin(); rit != shortestPath.crend(); rit++) {
-    std::cout << "Function " << (*rit)->getFnName() << " calls: " << "\n";
+    // std::cout << "Function " << (*rit)->getFnName() << " calls: " << "\n";
     std::unordered_set<std::string> calledFunctions;
 
     for (auto calledFuncIt = (*rit)->node->begin(); calledFuncIt != (*rit)->node->end(); ++calledFuncIt) {
@@ -101,17 +103,29 @@ void GraphManager::inspectPath() {
 
       if (node && node->getFunction()) {
         // std::cout << node->getFunction()->getName().str() << ", ";
-        calledFunctions.insert(node->getFunction()->getName().str());
+        std::string fnName {node->getFunction()->getName().str()};
+        if (std::find(skippableFunctions.begin(), skippableFunctions.end(), fnName) != skippableFunctions.end()) {
+          calledFunctions.insert(fnName);
+        }
       } 
     }
 
-    for (const auto& fnName : calledFunctions) {
-      std::cout << fnName << ", ";
-    }
+    // for (const auto& fnName : calledFunctions) {
+    //   // std::cout << fnName << ", ";
+    // }
 
+    allCalledFunctions.insert(std::end(allCalledFunctions), std::begin(calledFunctions), std::end(calledFunctions));
     calledFunctions.clear();
     
-    std::cout << "\n" << "\n";
+    // std::cout << "\n" << "\n";
+  }
+
+  for (const auto& fnName : allCalledFunctions) {
+    if (fnName == allCalledFunctions.back()) {
+      std::cout << fnName;
+    } else {
+      std::cout << fnName << ",";
+    }
   }
 }
 
