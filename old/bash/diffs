@@ -1,7 +1,0 @@
-diff --git a/find/ftsfind.c b/find/ftsfind.c
-index 607ea8d3..57804950 100644
---- a/find/ftsfind.c
-+++ b/find/ftsfind.c
-@@ -146 +146 @@ get_fts_info_name (int info)
--  static char buf[10];
-+  static char buf[14];

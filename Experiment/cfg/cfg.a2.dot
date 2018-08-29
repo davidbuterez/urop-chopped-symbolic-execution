@@ -1,5 +1,0 @@
-digraph "CFG for 'a2' function" {
-	label="CFG for 'a2' function";
-
-	Node0x44e8ac0 [shape=record,label="{entry:\l  %y.addr = alloca i32, align 4\l  store i32 %y, i32* %y.addr, align 4\l  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]*\l... @.str2, i32 0, i32 0))\l  call void @a1(i32 0)\l  ret void\l}"];
-}
