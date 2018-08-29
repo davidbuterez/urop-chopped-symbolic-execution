@@ -9,7 +9,8 @@
       "type": "python",
       "request": "launch",
       "program": "${file}",
-      "cwd": "${workspaceFolder}/diffanalyze/tests",
+      // "cwd": "${workspaceFolder}/../diffanalyze",
+      "cwd": "${workspaceFolder}/PatchesBBCount/",
       "args": [
         // "https://github.com/davidbuterez/password-example", "4d7add621bf6f54b520a02dd50c3aaf69a43b4f4"
         // "https://git.savannah.gnu.org/git/findutils.git", "c7344d33587bc5b781b958315c643284e2e9cf18" //, "--only-function-names"
@@ -20,6 +21,10 @@
         // "https://git.savannah.gnu.org/git/findutils.git", "d2fee47412b18ef929649f0a9c7de99374fd20d4"
         // "https://github.com/davidbuterez/password-example", "4d7add621bf6f54b520a02dd50c3aaf69a43b4f4", "--cache", "--verbose"
         // "https://git.savannah.gnu.org/git/findutils.git"
+        // "../findutils/obj-llvm/find/ftsfind.o.bc", "get_fts_info_name"
+        // "https://git.savannah.gnu.org/git/findutils.git", "-s", "--save-json"
+        // "https://github.com/Distrotech/diffutils", "../BBCountPass/CountBBPass.so", "--name", "diffutils", "--llvm-link-path", "/home/davidb/llvm-3.4/llvm-cmake/bin/llvm-link", "--patch-history", "output_diffutils_test.json", "--opt-path", "/home/davidb/llvm-3.4/llvm-cmake/bin/opt"
+        "https://git.savannah.gnu.org/git/findutils.git", "../BBCountPass/CountBBPass.so", "--name", "findutils", "--llvm-link-path", "/home/davidb/llvm-3.4/llvm-cmake/bin/llvm-link", "--patch-history", "output_findutils_mod.json", "--opt-path", "/home/davidb/llvm-3.4/llvm-cmake/bin/opt"
       ]
     },
     {

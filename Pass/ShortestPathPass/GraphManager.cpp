@@ -12,7 +12,7 @@ GraphManager::GraphManager(llvm::CallGraph &CG) : cg(CG) {
   root = std::make_shared<ExtendedCGNode> (CG.getRoot(), nullptr);
 }
 
-std::shared_ptr<ExtendedCGNode> GraphManager::findTargetNode(std::string targetFunction, std::vector<std::string> allFunctions) {
+std::shared_ptr<ExtendedCGNode> GraphManager::findTargetNode(std::string targetFunction, const std::vector<std::string> &allFunctions) {
   std::vector<std::string> path;
 
   std::unordered_set<std::shared_ptr<ExtendedCGNode>, ExtendedNodeHasher, ExtendedNodeEq> visited;
@@ -29,7 +29,6 @@ std::shared_ptr<ExtendedCGNode> GraphManager::findTargetNode(std::string targetF
 
     std::string fnName = current->getFnName();
 
-    // allFunctions.insert(current->getFnName());
     if (std::find(allFunctions.begin(), allFunctions.end(), fnName) != allFunctions.end()) {
       skippableFunctions.push_back(fnName);
     }
@@ -57,8 +56,9 @@ std::shared_ptr<ExtendedCGNode> GraphManager::findTargetNode(std::string targetF
   return target;
 }
 
+/* Store shortest path */
 void GraphManager::getShortestPath(std::shared_ptr<ExtendedCGNode> target) {
-  std::vector<std::shared_ptr<ExtendedCGNode>> path;
+   std::vector<std::shared_ptr<ExtendedCGNode>> path;
 
   if (!target) {
     shortestPath = path;
@@ -78,7 +78,8 @@ void GraphManager::getShortestPath(std::shared_ptr<ExtendedCGNode> target) {
   shortestPath = path;
 }
 
-void GraphManager::printPath() {
+/* Prints the shortest path */
+void GraphManager::printShortestPath() {
   if (shortestPath.empty()) {
     std::cout << "Function unreachable from main!\n";
     return;
@@ -91,18 +92,47 @@ void GraphManager::printPath() {
   std::cout << std::endl;
 }
 
-void GraphManager::inspectPath() {
+bool GraphManager::shortestPathContains(std::string fnName) {
+  for (auto shortestPathNode : shortestPath) {
+    if (shortestPathNode->getFnName() == fnName) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/* Skip everything that is not on the shortest path */
+void GraphManager::excludeAll() {
+  std::unordered_set<std::string> skip;
+
+  for (auto fnName : skippableFunctions) {
+    if (fnName == "null") {
+      continue;
+    }
+
+    if (shortestPathContains(fnName)) {
+      continue;
+    }
+
+    skip.insert(fnName);    
+  }
+
+  for (auto fnName : skip) {
+    std::cout << fnName << "\n";
+  }
+}
+
+/* Look at all functions that can get called by the functions on the shortest path, and exclude everything that is not directly on the path */
+void GraphManager::excludeSelective() {
   std::vector<std::string> allCalledFunctions;
 
   for (auto rit = shortestPath.crbegin(); rit != shortestPath.crend(); rit++) {
-    // std::cout << "Function " << (*rit)->getFnName() << " calls: " << "\n";
     std::unordered_set<std::string> calledFunctions;
 
     for (auto calledFuncIt = (*rit)->node->begin(); calledFuncIt != (*rit)->node->end(); ++calledFuncIt) {
       llvm::CallGraphNode* node = calledFuncIt->second;
 
       if (node && node->getFunction()) {
-        // std::cout << node->getFunction()->getName().str() << ", ";
         std::string fnName {node->getFunction()->getName().str()};
         if (std::find(skippableFunctions.begin(), skippableFunctions.end(), fnName) != skippableFunctions.end()) {
           calledFunctions.insert(fnName);
@@ -110,14 +140,8 @@ void GraphManager::inspectPath() {
       } 
     }
 
-    // for (const auto& fnName : calledFunctions) {
-    //   // std::cout << fnName << ", ";
-    // }
-
     allCalledFunctions.insert(std::end(allCalledFunctions), std::begin(calledFunctions), std::end(calledFunctions));
-    calledFunctions.clear();
-    
-    // std::cout << "\n" << "\n";
+    calledFunctions.clear(); 
   }
 
   for (const auto& fnName : allCalledFunctions) {
@@ -128,46 +152,4 @@ void GraphManager::inspectPath() {
     }
   }
 }
-
-// void GraphManager::printSkip() {
-//   for (auto fnName : skippableFunctions) {
-//     if (std::find(shortestPath.begin(), shortestPath.end(), fnName) != shortestPath.end() || fnName == "null") {
-//       continue;
-//     }
-    
-//     std::cout << fnName << "\n";
-//   }
-// }
-
-// void GraphManager::printAllFunctions() {
-//   std::cout << "All functions: ";
-//   for (auto fnName : allFunctions) {
-//     std::cout << fnName << " ";
-//   }
-//   std::cout << '\n';
-// }
-
-// std::unordered_set<std::string> GraphManager::printSkip() {
-//   std::unordered_set<std::string> skip;
-//   // std::cout << "Functions to skip: ";
-//   for (const auto& fnName : allFunctions) {
-//     if (std::find(shortestPath.begin(), shortestPath.end(), fnName) == shortestPath.end()) {
-//       if (fnName != "null") {
-//         skip.insert(fnName);
-      
-//         std::cout << fnName << " ";
-//         // llvm::Value *val = cg.getModule().getValueSymbolTable().lookup(fnName);
-//         // llvm::outs() << "Name " << fnName << "; Type: ";
-//         // val->getType()->print(llvm::outs());
-//         // llvm::outs() << "\n";
-//         // llvm::Function *f = cg.getModule().getFunction(fnName);
-//         // if (!f) {
-//         //   std::cout << "Not good " << fnName << '\n';
-//         // }
-//       }
-//     }
-//   }
-//   // std::cout << '\n';
-//   return skip;
-// }
 
